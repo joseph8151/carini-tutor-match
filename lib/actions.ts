@@ -5,9 +5,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { DEMO_COOKIE, getSessionUser } from "./session";
 import { createServerSupabase } from "./supabase/server";
-import { addMessage, createInquiry, getInquiry } from "./store";
-import { getTutorById } from "./data";
-import type { Role } from "./types";
+import {
+  addMessage,
+  createInquiry,
+  getInquiry,
+  reviewVerification,
+  setTier,
+  submitVerification,
+} from "./store";
+import { getAcademyBySlug, getTutorById } from "./data";
+import type { Role, SubscriptionTier } from "./types";
 
 const COOKIE_OPTS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 7 };
 
@@ -17,9 +24,12 @@ export async function demoLogin(role: Role, next?: string) {
   const user =
     role === "tutor"
       ? { id: "tu_1", name: "김서연", role: "tutor" as Role }
-      : { id: "demo_parent", name: "데모 학부모", role: "parent" as Role };
+      : role === "admin"
+        ? { id: "demo_admin", name: "운영자", role: "admin" as Role }
+        : { id: "demo_parent", name: "데모 학부모", role: "parent" as Role };
   store.set(DEMO_COOKIE, JSON.stringify(user), COOKIE_OPTS);
-  redirect(next && next.startsWith("/") ? next : role === "tutor" ? "/inbox" : "/tutors");
+  const home = role === "tutor" ? "/tutor" : role === "admin" ? "/admin/verifications" : "/tutors";
+  redirect(next && next.startsWith("/") ? next : home);
 }
 
 export async function signOut() {
@@ -89,4 +99,44 @@ export async function sendMessage(formData: FormData) {
   }
   addMessage({ inquiryId, senderId: user.id, body });
   revalidatePath(`/inbox/${inquiryId}`);
+}
+
+// ── 구독 업그레이드 (MVP: 모의 결제. 실서비스=토스/카카오페이) ──
+export async function upgradePlan(plan: SubscriptionTier) {
+  const user = await getSessionUser();
+  if (user?.role !== "tutor") redirect("/login?next=/tutor/subscription");
+  setTier(user.id, plan);
+  revalidatePath("/tutor/subscription");
+  revalidatePath("/tutor");
+  redirect("/tutor/subscription?ok=1");
+}
+
+// ── 실적 인증 신청 (튜터) ─────────────────────────────────
+export async function requestVerification(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "tutor") redirect("/login?next=/tutor");
+  const academySlug = String(formData.get("academySlug") ?? "");
+  const type = String(formData.get("type") ?? "pass") === "career" ? "career" : "pass";
+  const evidence = String(formData.get("evidence") ?? "").trim();
+  const academy = await getAcademyBySlug(academySlug);
+  if (!academy || !evidence) redirect("/tutor?err=verify");
+  submitVerification({
+    tutorId: user.id,
+    tutorName: user.name,
+    academySlug: academy.slug,
+    academyName: academy.name,
+    type,
+    evidence,
+  });
+  redirect("/tutor?ok=verify");
+}
+
+// ── 인증 검수 (관리자) ────────────────────────────────────
+export async function decideVerification(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "admin") redirect("/login?next=/admin/verifications");
+  const id = String(formData.get("id") ?? "");
+  const approve = String(formData.get("decision") ?? "") === "approve";
+  reviewVerification(id, approve);
+  revalidatePath("/admin/verifications");
 }

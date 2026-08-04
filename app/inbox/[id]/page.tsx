@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
-import { getInquiry, getMessages } from "@/lib/store";
+import { getInquiry, getMessages, lockedInquiryIds } from "@/lib/store";
+import { getTutorById } from "@/lib/data";
 import { MessageThread } from "@/components/MessageThread";
 
 export const metadata = { title: "대화" };
@@ -14,9 +15,40 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
   const iq = getInquiry(id);
   if (!iq || (iq.parent_id !== user.id && iq.tutor_id !== user.id)) notFound();
 
-  const messages = getMessages(id);
   const isTutor = user.role === "tutor";
   const other = isTutor ? iq.parent_name : `${iq.tutor_name} 튜터`;
+
+  // 무료 티어 튜터: 열람 한도 초과 대화는 페이월
+  if (isTutor) {
+    const me = await getTutorById(user.id);
+    if (lockedInquiryIds(user.id, me?.subscription_tier ?? "free").has(id)) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-4">
+          <nav className="text-sm text-gray-400">
+            <Link href="/inbox" className="hover:text-brand-600">
+              문의함
+            </Link>{" "}
+            / <span className="text-gray-600">잠긴 문의</span>
+          </nav>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
+            <p className="text-lg font-bold text-amber-800">🔒 열람 한도를 초과했습니다</p>
+            <p className="mt-2 text-sm text-amber-700">
+              무료 등급은 최근 문의만 열람할 수 있습니다. 프로 이상으로 업그레이드하면 모든 문의에
+              답장할 수 있습니다.
+            </p>
+            <Link
+              href="/tutor/subscription"
+              className="mt-4 inline-block rounded-xl bg-brand-600 px-5 py-2.5 font-semibold text-white hover:bg-brand-700"
+            >
+              업그레이드하기
+            </Link>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  const messages = getMessages(id);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">

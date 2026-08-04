@@ -41,6 +41,19 @@ export interface SessionUser {
   demo?: boolean;
 }
 
+export interface Verification {
+  id: string;
+  tutor_id: string;
+  tutor_name: string;
+  academy_slug: string;
+  academy_name: string;
+  type: "pass" | "career";
+  evidence: string;
+  status: VerificationStatus;
+  created_at: string;
+  reviewed_at?: string;
+}
+
 export interface Inquiry {
   id: string;
   parent_id: string;

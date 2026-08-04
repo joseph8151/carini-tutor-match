@@ -18,6 +18,7 @@ export default async function LoginPage({
 
   const loginParent = demoLogin.bind(null, "parent", next);
   const loginTutor = demoLogin.bind(null, "tutor", next);
+  const loginAdmin = demoLogin.bind(null, "admin", next);
 
   return (
     <div className="mx-auto max-w-md space-y-6 py-10">
@@ -48,6 +49,11 @@ export default async function LoginPage({
           <form action={loginTutor}>
             <button className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50">
               튜터 데모로 시작 (김서연 튜터)
+            </button>
+          </form>
+          <form action={loginAdmin}>
+            <button className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-500 hover:bg-gray-100">
+              운영자(관리자) 데모
             </button>
           </form>
         </div>

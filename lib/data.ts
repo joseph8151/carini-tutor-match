@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { mergeTutor } from "./store";
 import {
   academies as seedAcademies,
   levelTests as seedLevelTests,
@@ -76,8 +77,8 @@ export interface TutorFilter {
 }
 
 export async function getTutors(filter: TutorFilter = {}): Promise<Tutor[]> {
-  // MVP: 시드 데이터 필터링. Supabase 전환 시 동일 시그니처로 교체.
-  let list = seedTutors;
+  // MVP: 시드 데이터 + 런타임 override(구독/인증) 병합. Supabase 전환 시 동일 시그니처로 교체.
+  let list = seedTutors.map(mergeTutor);
   if (filter.academySlug) list = list.filter((t) => t.academy_slugs.includes(filter.academySlug!));
   if (filter.region) list = list.filter((t) => t.regions.includes(filter.region!));
   if (filter.subject) list = list.filter((t) => t.subjects.includes(filter.subject!));
@@ -86,7 +87,8 @@ export async function getTutors(filter: TutorFilter = {}): Promise<Tutor[]> {
 }
 
 export async function getTutorById(id: string): Promise<Tutor | null> {
-  return seedTutors.find((t) => t.id === id) ?? null;
+  const t = seedTutors.find((t) => t.id === id);
+  return t ? mergeTutor(t) : null;
 }
 
 // 필터 UI용 옵션 값
