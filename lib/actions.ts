@@ -7,13 +7,21 @@ import { DEMO_COOKIE, getSessionUser } from "./session";
 import { createServerSupabase } from "./supabase/server";
 import {
   addMessage,
+  bookMock,
   createInquiry,
+  createPayment,
   createReport,
   createReview,
   getInquiry,
+  getPaymentForInquiry,
+  grantParentPremium,
+  openDispute,
+  releasePayment,
+  resolveDispute,
   reviewVerification,
   setTier,
   submitVerification,
+  usePass,
 } from "./store";
 import { getAcademyBySlug, getTutorById } from "./data";
 import type { Role, SubscriptionTier } from "./types";
@@ -76,6 +84,10 @@ export async function startInquiry(formData: FormData) {
   const tutor = await getTutorById(tutorId);
   if (!tutor) redirect("/tutors");
 
+  // 우선 매칭권 사용 (보유 시에만 소모)
+  const wantPriority = String(formData.get("usePass") ?? "") === "1";
+  const priority = wantPriority ? usePass(user.id) : false;
+
   const iq = createInquiry({
     parentId: user.id,
     parentName: user.name,
@@ -83,6 +95,7 @@ export async function startInquiry(formData: FormData) {
     tutorName: tutor.name,
     academySlug,
     body,
+    priority,
   });
   redirect(`/inbox/${iq.id}`);
 }
@@ -195,4 +208,71 @@ export async function writeReview(formData: FormData) {
   });
   revalidatePath(`/tutors/${tutorId}`);
   redirect(`/tutors/${tutorId}?ok=review`);
+}
+
+// ── 학부모 프리미엄 (모의 결제) ───────────────────────────
+export async function upgradeParentPremium() {
+  const user = await getSessionUser();
+  if (user?.role !== "parent") redirect("/login?next=/parent/premium");
+  grantParentPremium(user.id);
+  revalidatePath("/parent");
+  revalidatePath("/parent/premium");
+  redirect("/parent/premium?ok=1");
+}
+
+// ── 결제 보호: 첫 수업 안전결제 (에스크로 유사) ───────────
+export async function payFirstLesson(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "parent") redirect("/login");
+  const inquiryId = String(formData.get("inquiryId") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const iq = getInquiry(inquiryId);
+  if (!iq || iq.parent_id !== user.id) redirect("/inbox");
+  if (!getPaymentForInquiry(inquiryId)) {
+    createPayment({ inquiryId, parentId: user.id, tutorId: iq.tutor_id, amount });
+  }
+  revalidatePath(`/inbox/${inquiryId}`);
+}
+
+export async function confirmLesson(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const inquiryId = String(formData.get("inquiryId") ?? "");
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const iq = getInquiry(inquiryId);
+  if (!iq || iq.parent_id !== user.id) redirect("/inbox");
+  releasePayment(paymentId);
+  revalidatePath(`/inbox/${inquiryId}`);
+}
+
+export async function raiseDispute(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const inquiryId = String(formData.get("inquiryId") ?? "");
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim() || "분쟁 신청";
+  const iq = getInquiry(inquiryId);
+  if (!iq || (iq.parent_id !== user.id && iq.tutor_id !== user.id)) redirect("/inbox");
+  openDispute({ paymentId, openedBy: user.id, reason });
+  revalidatePath(`/inbox/${inquiryId}`);
+}
+
+export async function decideDispute(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "admin") redirect("/login?next=/admin/disputes");
+  const disputeId = String(formData.get("disputeId") ?? "");
+  const refund = String(formData.get("decision") ?? "") === "refund";
+  resolveDispute(disputeId, refund);
+  revalidatePath("/admin/disputes");
+}
+
+// ── 모의 레테 신청 ────────────────────────────────────────
+export async function bookMockTest(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "parent") redirect("/login?next=/mock-tests");
+  const mockId = String(formData.get("mockId") ?? "");
+  bookMock(user.id, mockId);
+  revalidatePath("/mock-tests");
+  revalidatePath("/parent");
+  redirect("/mock-tests?ok=1");
 }

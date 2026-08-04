@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
-import { getInquiry, getMessages, listReportsForInquiry, lockedInquiryIds } from "@/lib/store";
+import {
+  getInquiry,
+  getMessages,
+  getPaymentForInquiry,
+  listReportsForInquiry,
+  lockedInquiryIds,
+} from "@/lib/store";
 import { getTutorById } from "@/lib/data";
 import { MessageThread } from "@/components/MessageThread";
 import { ReportSection } from "@/components/ReportSection";
+import { PaymentBox } from "@/components/PaymentBox";
 
 export const metadata = { title: "대화" };
 
@@ -58,6 +65,8 @@ export default async function ThreadPage({
 
   const messages = getMessages(id);
   const reports = listReportsForInquiry(id);
+  const payment = getPaymentForInquiry(id);
+  const tutor = await getTutorById(iq.tutor_id);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -70,7 +79,14 @@ export default async function ThreadPage({
 
       <header className="rounded-2xl border border-gray-200 bg-white px-5 py-3">
         <div className="flex items-center justify-between">
-          <span className="font-bold">{other}</span>
+          <span className="font-bold">
+            {iq.priority && (
+              <span className="mr-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">
+                ⚡ 우선 문의
+              </span>
+            )}
+            {other}
+          </span>
           {iq.academy_slug && (
             <Link
               href={`/academy/${iq.academy_slug}`}
@@ -86,6 +102,13 @@ export default async function ThreadPage({
       </header>
 
       <MessageThread inquiryId={id} initialMessages={messages} meId={user.id} />
+
+      <PaymentBox
+        inquiryId={id}
+        payment={payment}
+        isParent={user.role === "parent"}
+        suggestedAmount={tutor?.base_rate ?? 60000}
+      />
 
       <ReportSection
         inquiryId={id}

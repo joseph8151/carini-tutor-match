@@ -7,6 +7,10 @@ import {
   listReportsForParent,
   tutorsInquiredBy,
   hasReviewed,
+  isParentPremium,
+  getPasses,
+  listMockBookings,
+  listPaymentsForParent,
 } from "@/lib/store";
 
 export const metadata = { title: "내 학습" };
@@ -27,6 +31,11 @@ export default async function ParentDashboard() {
   const inquiries = listInquiriesFor(user.id);
   const reports = listReportsForParent(user.id);
   const tutors = tutorsInquiredBy(user.id);
+  const premium = isParentPremium(user.id);
+  const passes = getPasses(user.id);
+  const mockBookings = listMockBookings(user.id);
+  const payments = listPaymentsForParent(user.id);
+  const heldPayments = payments.filter((p) => p.status === "held" || p.status === "disputed");
 
   // 문의한 학원 기준 다가오는 레테 일정
   const mySlugs = new Set(inquiries.map((i) => i.academy_slug).filter(Boolean) as string[]);
@@ -40,7 +49,58 @@ export default async function ParentDashboard() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold">{user.name}님의 학습 대시보드</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">{user.name}님의 학습 대시보드</h1>
+        <Link
+          href="/mock-tests"
+          className="text-sm font-medium text-brand-600 hover:underline"
+        >
+          모의 레테 →
+        </Link>
+      </div>
+
+      {/* 프리미엄 / 우선 매칭권 */}
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-5">
+        <div>
+          <p className="font-bold">
+            {premium ? "프리미엄 이용 중" : "학부모 프리미엄"}
+            {premium && (
+              <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">
+                우선 매칭권 {passes.remaining}장
+              </span>
+            )}
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            우선 매칭 · 상세 합격 후기 · 레테 알림 · 모의 레테 우선 신청
+          </p>
+        </div>
+        <Link
+          href="/parent/premium"
+          className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          {premium ? "관리" : "업그레이드"}
+        </Link>
+      </section>
+
+      {/* 안전결제 진행 상황 */}
+      {heldPayments.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-bold">안전결제 진행 중</h2>
+          <ul className="space-y-2">
+            {heldPayments.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm"
+              >
+                <span className="font-semibold">{p.amount.toLocaleString()}원</span>
+                <Link href={`/inbox/${p.inquiry_id}`} className="text-brand-600 hover:underline">
+                  {p.status === "disputed" ? "분쟁 검토 중" : "결제 보호 중"} · 대화 열기 →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 레테 D-day */}
       <section>
@@ -109,6 +169,27 @@ export default async function ParentDashboard() {
           </ol>
         )}
       </section>
+
+      {/* 모의 레테 신청 내역 */}
+      {mockBookings.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-bold">신청한 모의 레테</h2>
+          <ul className="space-y-2">
+            {mockBookings.map((b) => (
+              <li
+                key={b.id}
+                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm"
+              >
+                <span className="font-semibold">
+                  {b.mock_name}
+                  <span className="ml-2 text-xs text-gray-400">{academyName(b.academy_slug)}</span>
+                </span>
+                <span className="text-gray-500">{b.date}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 후기 작성 */}
       {tutors.length > 0 && (

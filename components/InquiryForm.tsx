@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { startInquiry } from "@/lib/actions";
 import { getSessionUser } from "@/lib/session";
+import { getPasses } from "@/lib/store";
 
 export async function InquiryForm({
   tutorId,
@@ -17,6 +18,7 @@ export async function InquiryForm({
 }) {
   const user = await getSessionUser();
   const canInquire = user?.role === "parent";
+  const passes = user?.role === "parent" ? getPasses(user.id).remaining : 0;
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
@@ -44,6 +46,12 @@ export async function InquiryForm({
             placeholder={`${tutorName} 튜터에게 문의 내용을 남겨주세요. (아이 학년·목표 학원·레테 일정 등)`}
             className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
+          {passes > 0 && (
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input type="checkbox" name="usePass" value="1" />
+              우선 매칭권 사용 (상단 노출) · 보유 {passes}장
+            </label>
+          )}
           <button className="w-full rounded-xl bg-brand-600 px-6 py-3 font-semibold text-white hover:bg-brand-700">
             문의 보내기
           </button>

@@ -10,12 +10,14 @@ export function ReviewSection({
   tutorName,
   reviews,
   canReview,
+  canSeeDetail,
   saved,
 }: {
   tutorId: string;
   tutorName: string;
   reviews: Review[];
   canReview: boolean;
+  canSeeDetail: boolean; // 상세 합격 후기 열람 권한 (프리미엄/작성자)
   saved?: boolean;
 }) {
   return (
@@ -45,7 +47,16 @@ export function ReviewSection({
                 )}
                 <span className="ml-auto text-xs text-gray-400">{r.parent_name}</span>
               </div>
-              <p className="mt-2 text-sm text-gray-700">{r.body}</p>
+              {r.is_verified_pass && !canSeeDetail ? (
+                <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-700">
+                  🔒 상세 합격 후기는 학부모 프리미엄에서 열람할 수 있습니다.{" "}
+                  <a href="/parent/premium" className="font-semibold underline">
+                    업그레이드
+                  </a>
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-gray-700">{r.body}</p>
+              )}
             </li>
           ))}
         </ul>

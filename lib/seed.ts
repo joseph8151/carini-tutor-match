@@ -1,4 +1,4 @@
-import type { Academy, LevelTest, TestSchedule, Tutor } from "./types";
+import type { Academy, LevelTest, MockTest, TestSchedule, Tutor } from "./types";
 
 // 상위권 영어학원 (대치/분당/광교). MVP 시연용 시드 데이터.
 export const academies: Academy[] = [
@@ -76,6 +76,13 @@ export const testSchedules: TestSchedule[] = [
   { id: "ts_2", academy_id: "ac_twinkle", test_date: "2026-08-17", apply_deadline: "2026-08-12", note: "초등부 신규반" },
   { id: "ts_3", academy_id: "ac_edisen", test_date: "2026-08-30", apply_deadline: "2026-08-23", note: "가을학기 디베이트반" },
   { id: "ts_4", academy_id: "ac_pi", test_date: "2026-09-06", apply_deadline: "2026-08-30", note: "프랩 집중반" },
+];
+
+export const mockTests: MockTest[] = [
+  { id: "mk_mi", academy_slug: "mi", name: "MI 정규반 모의 레테", price: 40000, date: "2026-08-16" },
+  { id: "mk_twinkle", academy_slug: "twinkle", name: "트윈클 입학 모의 레테", price: 30000, date: "2026-08-13" },
+  { id: "mk_edisen", academy_slug: "edisen", name: "에디센 디베이트 모의 레테", price: 45000, date: "2026-08-24" },
+  { id: "mk_pi", academy_slug: "pi", name: "PI 프랩 모의 레테", price: 40000, date: "2026-08-30" },
 ];
 
 export const tutors: Tutor[] = [

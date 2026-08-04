@@ -18,6 +18,9 @@ export async function Navbar() {
           <Link href="/academy/mi" className="hover:text-brand-600">
             학원별 레테
           </Link>
+          <Link href="/mock-tests" className="hover:text-brand-600">
+            모의 레테
+          </Link>
           {user ? (
             <>
               {user.role === "parent" && (
@@ -31,9 +34,14 @@ export async function Navbar() {
                 </Link>
               )}
               {user.role === "admin" && (
-                <Link href="/admin/verifications" className="hover:text-brand-600">
-                  검수
-                </Link>
+                <>
+                  <Link href="/admin/verifications" className="hover:text-brand-600">
+                    검수
+                  </Link>
+                  <Link href="/admin/disputes" className="hover:text-brand-600">
+                    분쟁
+                  </Link>
+                </>
               )}
               <Link href="/inbox" className="hover:text-brand-600">
                 문의함

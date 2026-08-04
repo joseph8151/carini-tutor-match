@@ -62,8 +62,55 @@ export interface Inquiry {
   tutor_name: string;
   academy_slug?: string;
   status: "open" | "matched" | "closed";
+  priority: boolean; // 우선 매칭권 사용 문의
   created_at: string;
   last_body: string;
+}
+
+export type PaymentStatus = "held" | "released" | "disputed" | "refunded";
+
+export interface Payment {
+  id: string;
+  inquiry_id: string;
+  parent_id: string;
+  tutor_id: string;
+  amount: number;
+  status: PaymentStatus;
+  created_at: string;
+}
+
+export interface Dispute {
+  id: string;
+  payment_id: string;
+  inquiry_id: string;
+  opened_by: string;
+  reason: string;
+  status: "open" | "resolved";
+  resolution?: string;
+  created_at: string;
+}
+
+export interface MockTest {
+  id: string;
+  academy_slug: string;
+  name: string;
+  price: number;
+  date: string;
+}
+
+export interface MockBooking {
+  id: string;
+  parent_id: string;
+  mock_id: string;
+  mock_name: string;
+  academy_slug: string;
+  date: string;
+  created_at: string;
+}
+
+export interface PassInfo {
+  granted: number;
+  used: number;
 }
 
 export interface Message {

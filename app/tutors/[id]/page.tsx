@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getTutorById, getAcademies } from "@/lib/data";
 import { getSessionUser } from "@/lib/session";
-import { listReviewsForTutor } from "@/lib/store";
+import { listReviewsForTutor, isParentPremium } from "@/lib/store";
 import { VerifiedBadge, TierBadge, AcademyBadge } from "@/components/Badges";
 import { InquiryForm } from "@/components/InquiryForm";
 import { ReviewSection } from "@/components/ReviewSection";
@@ -35,6 +35,10 @@ export default async function TutorDetailPage({
   ]);
   if (!tutor) notFound();
   const reviews = listReviewsForTutor(tutor.id);
+  const canSeeDetail =
+    user?.role === "admin" ||
+    user?.role === "tutor" ||
+    (user?.role === "parent" && isParentPremium(user.id));
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -116,6 +120,7 @@ export default async function TutorDetailPage({
         tutorName={tutor.name}
         reviews={reviews}
         canReview={user?.role === "parent"}
+        canSeeDetail={canSeeDetail}
         saved={ok === "review"}
       />
 

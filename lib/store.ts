@@ -1,13 +1,19 @@
 import type {
+  Dispute,
   Inquiry,
   LessonReport,
   Message,
+  MockBooking,
+  PassInfo,
+  Payment,
+  PaymentStatus,
   Review,
   SubscriptionTier,
   Tutor,
   TutorBadge,
   Verification,
 } from "./types";
+import { mockTests } from "./seed";
 
 /**
  * 인앱 문의/메시징 + 구독/인증 런타임 상태 (MVP: 인메모리).
@@ -25,11 +31,19 @@ interface DB {
   verifications: Verification[];
   reports: LessonReport[];
   reviews: Review[];
+  payments: Payment[];
+  disputes: Dispute[];
+  mockBookings: MockBooking[];
+  parentPremium: Record<string, boolean>;
+  passes: Record<string, PassInfo>;
   tierOverride: Record<string, SubscriptionTier>;
   verifiedOverride: Record<string, boolean>;
   badgeOverride: Record<string, TutorBadge[]>;
   seq: number;
 }
+
+// 학부모 프리미엄 가입 시 지급되는 우선 매칭권 수
+export const PREMIUM_PASS_GRANT = 2;
 
 const g = globalThis as unknown as { __cariniDB?: DB };
 
@@ -87,6 +101,11 @@ function seed(): DB {
     verifications: [],
     reports,
     reviews,
+    payments: [],
+    disputes: [],
+    mockBookings: [],
+    parentPremium: {},
+    passes: {},
     tierOverride: {},
     verifiedOverride: {},
     badgeOverride: {},
@@ -100,7 +119,8 @@ function mkIq(
 ): Inquiry {
   return {
     id, parent_id: parentId, parent_name: parentName, tutor_id: tutorId, tutor_name: tutorName,
-    academy_slug: academySlug, status: "open", created_at: createdAt, last_body: lastBody,
+    academy_slug: academySlug, status: "open", priority: false,
+    created_at: createdAt, last_body: lastBody,
   };
 }
 function mkMsg(id: string, inquiryId: string, senderId: string, body: string, createdAt: string): Message {
@@ -115,7 +135,11 @@ function nowIso(): string {
 export function listInquiriesFor(userId: string): Inquiry[] {
   return db()
     .inquiries.filter((i) => i.parent_id === userId || i.tutor_id === userId)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    .sort((a, b) => {
+      // 우선 매칭권 문의를 상단에, 그다음 최신순
+      if (a.priority !== b.priority) return a.priority ? -1 : 1;
+      return b.created_at.localeCompare(a.created_at);
+    });
 }
 
 export function getInquiry(id: string): Inquiry | null {
@@ -138,11 +162,12 @@ export function findOpenInquiry(parentId: string, tutorId: string): Inquiry | nu
 
 export function createInquiry(input: {
   parentId: string; parentName: string; tutorId: string; tutorName: string;
-  academySlug?: string; body: string;
+  academySlug?: string; body: string; priority?: boolean;
 }): Inquiry {
   const d = db();
   const existing = findOpenInquiry(input.parentId, input.tutorId);
   if (existing) {
+    if (input.priority) existing.priority = true;
     addMessage({ inquiryId: existing.id, senderId: input.parentId, body: input.body });
     return existing;
   }
@@ -150,7 +175,7 @@ export function createInquiry(input: {
     id: `iq_${++d.seq}`,
     parent_id: input.parentId, parent_name: input.parentName,
     tutor_id: input.tutorId, tutor_name: input.tutorName,
-    academy_slug: input.academySlug, status: "open",
+    academy_slug: input.academySlug, status: "open", priority: !!input.priority,
     created_at: nowIso(), last_body: input.body,
   };
   d.inquiries.push(iq);
@@ -335,4 +360,127 @@ export function tutorsInquiredBy(parentId: string): { id: string; name: string; 
     }
   }
   return [...seen.values()];
+}
+
+// ── 학부모 프리미엄 + 우선 매칭권 ─────────────────────────
+export function isParentPremium(parentId: string): boolean {
+  return !!db().parentPremium[parentId];
+}
+
+export function grantParentPremium(parentId: string): void {
+  const d = db();
+  d.parentPremium[parentId] = true;
+  const p = d.passes[parentId] ?? (d.passes[parentId] = { granted: 0, used: 0 });
+  p.granted += PREMIUM_PASS_GRANT;
+}
+
+export function getPasses(parentId: string): PassInfo & { remaining: number } {
+  const p = db().passes[parentId] ?? { granted: 0, used: 0 };
+  return { ...p, remaining: p.granted - p.used };
+}
+
+export function usePass(parentId: string): boolean {
+  const d = db();
+  const p = d.passes[parentId];
+  if (!p || p.granted - p.used <= 0) return false;
+  p.used += 1;
+  return true;
+}
+
+// ── 결제 보호 (에스크로 유사) + 분쟁 ──────────────────────
+export function getPaymentForInquiry(inquiryId: string): Payment | null {
+  return (
+    db()
+      .payments.filter((p) => p.inquiry_id === inquiryId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
+  );
+}
+
+export function createPayment(input: {
+  inquiryId: string; parentId: string; tutorId: string; amount: number;
+}): Payment {
+  const d = db();
+  const pay: Payment = {
+    id: `pay_${++d.seq}`,
+    inquiry_id: input.inquiryId, parent_id: input.parentId, tutor_id: input.tutorId,
+    amount: input.amount, status: "held", created_at: nowIso(),
+  };
+  d.payments.push(pay);
+  return pay;
+}
+
+function setPaymentStatus(paymentId: string, status: PaymentStatus): Payment | null {
+  const pay = db().payments.find((p) => p.id === paymentId);
+  if (pay) pay.status = status;
+  return pay ?? null;
+}
+
+export function releasePayment(paymentId: string): void {
+  const pay = db().payments.find((p) => p.id === paymentId);
+  if (pay && pay.status === "held") pay.status = "released";
+}
+
+export function openDispute(input: { paymentId: string; openedBy: string; reason: string }): Dispute | null {
+  const d = db();
+  const pay = d.payments.find((p) => p.id === input.paymentId);
+  if (!pay || pay.status !== "held") return null;
+  pay.status = "disputed";
+  const dispute: Dispute = {
+    id: `dp_${++d.seq}`,
+    payment_id: pay.id, inquiry_id: pay.inquiry_id,
+    opened_by: input.openedBy, reason: input.reason,
+    status: "open", created_at: nowIso(),
+  };
+  d.disputes.push(dispute);
+  return dispute;
+}
+
+export function listOpenDisputes(): (Dispute & { payment?: Payment })[] {
+  const d = db();
+  return d.disputes
+    .filter((x) => x.status === "open")
+    .map((x) => ({ ...x, payment: d.payments.find((p) => p.id === x.payment_id) }))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+export function resolveDispute(disputeId: string, refund: boolean): void {
+  const d = db();
+  const dispute = d.disputes.find((x) => x.id === disputeId);
+  if (!dispute || dispute.status !== "open") return;
+  dispute.status = "resolved";
+  dispute.resolution = refund ? "환불" : "정산(튜터 지급)";
+  setPaymentStatus(dispute.payment_id, refund ? "refunded" : "released");
+}
+
+export function listPaymentsForParent(parentId: string): Payment[] {
+  return db()
+    .payments.filter((p) => p.parent_id === parentId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+// ── 모의 레테 ─────────────────────────────────────────────
+export function listMockTests(): typeof mockTests {
+  return mockTests;
+}
+
+export function bookMock(parentId: string, mockId: string): MockBooking | null {
+  const mk = mockTests.find((m) => m.id === mockId);
+  if (!mk) return null;
+  const d = db();
+  if (d.mockBookings.some((b) => b.parent_id === parentId && b.mock_id === mockId)) {
+    return d.mockBookings.find((b) => b.parent_id === parentId && b.mock_id === mockId) ?? null;
+  }
+  const booking: MockBooking = {
+    id: `mb_${++d.seq}`,
+    parent_id: parentId, mock_id: mk.id, mock_name: mk.name,
+    academy_slug: mk.academy_slug, date: mk.date, created_at: nowIso(),
+  };
+  d.mockBookings.push(booking);
+  return booking;
+}
+
+export function listMockBookings(parentId: string): MockBooking[] {
+  return db()
+    .mockBookings.filter((b) => b.parent_id === parentId)
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
