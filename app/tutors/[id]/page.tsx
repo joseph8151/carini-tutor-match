@@ -2,8 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getTutorById, getAcademies } from "@/lib/data";
+import { getSessionUser } from "@/lib/session";
+import { listReviewsForTutor } from "@/lib/store";
 import { VerifiedBadge, TierBadge, AcademyBadge } from "@/components/Badges";
 import { InquiryForm } from "@/components/InquiryForm";
+import { ReviewSection } from "@/components/ReviewSection";
 
 export async function generateMetadata({
   params,
@@ -21,12 +24,17 @@ export default async function TutorDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ err?: string }>;
+  searchParams: Promise<{ err?: string; ok?: string }>;
 }) {
   const { id } = await params;
-  const { err } = await searchParams;
-  const [tutor, academies] = await Promise.all([getTutorById(id), getAcademies()]);
+  const { err, ok } = await searchParams;
+  const [tutor, academies, user] = await Promise.all([
+    getTutorById(id),
+    getAcademies(),
+    getSessionUser(),
+  ]);
   if (!tutor) notFound();
+  const reviews = listReviewsForTutor(tutor.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -102,6 +110,14 @@ export default async function TutorDetailPage({
           ))}
         </div>
       </section>
+
+      <ReviewSection
+        tutorId={tutor.id}
+        tutorName={tutor.name}
+        reviews={reviews}
+        canReview={user?.role === "parent"}
+        saved={ok === "review"}
+      />
 
       {/* 문의 (인앱 메시징) */}
       <div className="sticky bottom-4">

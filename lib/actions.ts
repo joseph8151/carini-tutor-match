@@ -8,6 +8,8 @@ import { createServerSupabase } from "./supabase/server";
 import {
   addMessage,
   createInquiry,
+  createReport,
+  createReview,
   getInquiry,
   reviewVerification,
   setTier,
@@ -28,7 +30,7 @@ export async function demoLogin(role: Role, next?: string) {
         ? { id: "demo_admin", name: "운영자", role: "admin" as Role }
         : { id: "demo_parent", name: "데모 학부모", role: "parent" as Role };
   store.set(DEMO_COOKIE, JSON.stringify(user), COOKIE_OPTS);
-  const home = role === "tutor" ? "/tutor" : role === "admin" ? "/admin/verifications" : "/tutors";
+  const home = role === "tutor" ? "/tutor" : role === "admin" ? "/admin/verifications" : "/parent";
   redirect(next && next.startsWith("/") ? next : home);
 }
 
@@ -139,4 +141,58 @@ export async function decideVerification(formData: FormData) {
   const approve = String(formData.get("decision") ?? "") === "approve";
   reviewVerification(id, approve);
   revalidatePath("/admin/verifications");
+}
+
+// ── 수업 리포트 작성 (튜터 → 학부모 대시보드) ─────────────
+export async function writeReport(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "tutor") redirect("/login");
+  const inquiryId = String(formData.get("inquiryId") ?? "");
+  const iq = getInquiry(inquiryId);
+  if (!iq || iq.tutor_id !== user.id) redirect("/inbox");
+
+  const content = String(formData.get("content") ?? "").trim();
+  const progressNote = String(formData.get("progressNote") ?? "").trim();
+  const date = String(formData.get("date") ?? "").trim();
+  if (!content) redirect(`/inbox/${inquiryId}?err=report`);
+
+  createReport({
+    inquiryId,
+    tutorId: user.id,
+    tutorName: user.name,
+    parentId: iq.parent_id,
+    academySlug: iq.academy_slug,
+    date,
+    content,
+    progressNote,
+  });
+  revalidatePath(`/inbox/${inquiryId}`);
+  redirect(`/inbox/${inquiryId}?ok=report`);
+}
+
+// ── 합격 후기 작성 (학부모 → 튜터 프로필) ─────────────────
+export async function writeReview(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "parent") redirect("/login");
+  const tutorId = String(formData.get("tutorId") ?? "");
+  const tutor = await getTutorById(tutorId);
+  if (!tutor) redirect("/tutors");
+
+  const rating = Number(formData.get("rating") ?? 5);
+  const body = String(formData.get("body") ?? "").trim();
+  const isVerifiedPass = String(formData.get("pass") ?? "") === "1";
+  if (!body) redirect(`/tutors/${tutorId}?err=review`);
+
+  createReview({
+    parentId: user.id,
+    parentName: user.name,
+    tutorId: tutor.id,
+    tutorName: tutor.name,
+    academySlug: tutor.academy_slugs[0],
+    rating,
+    body,
+    isVerifiedPass,
+  });
+  revalidatePath(`/tutors/${tutorId}`);
+  redirect(`/tutors/${tutorId}?ok=review`);
 }

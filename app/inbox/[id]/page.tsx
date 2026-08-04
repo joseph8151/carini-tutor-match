@@ -1,14 +1,22 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
-import { getInquiry, getMessages, lockedInquiryIds } from "@/lib/store";
+import { getInquiry, getMessages, listReportsForInquiry, lockedInquiryIds } from "@/lib/store";
 import { getTutorById } from "@/lib/data";
 import { MessageThread } from "@/components/MessageThread";
+import { ReportSection } from "@/components/ReportSection";
 
 export const metadata = { title: "대화" };
 
-export default async function ThreadPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ThreadPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ok?: string }>;
+}) {
   const { id } = await params;
+  const { ok } = await searchParams;
   const user = await getSessionUser();
   if (!user) redirect(`/login?next=/inbox/${id}`);
 
@@ -49,6 +57,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
   }
 
   const messages = getMessages(id);
+  const reports = listReportsForInquiry(id);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -77,6 +86,13 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
       </header>
 
       <MessageThread inquiryId={id} initialMessages={messages} meId={user.id} />
+
+      <ReportSection
+        inquiryId={id}
+        reports={reports}
+        isTutor={isTutor}
+        saved={ok === "report"}
+      />
     </div>
   );
 }

@@ -1,4 +1,13 @@
-import type { Inquiry, Message, SubscriptionTier, Tutor, TutorBadge, Verification } from "./types";
+import type {
+  Inquiry,
+  LessonReport,
+  Message,
+  Review,
+  SubscriptionTier,
+  Tutor,
+  TutorBadge,
+  Verification,
+} from "./types";
 
 /**
  * 인앱 문의/메시징 + 구독/인증 런타임 상태 (MVP: 인메모리).
@@ -14,6 +23,8 @@ interface DB {
   inquiries: Inquiry[];
   messages: Message[];
   verifications: Verification[];
+  reports: LessonReport[];
+  reviews: Review[];
   tierOverride: Record<string, SubscriptionTier>;
   verifiedOverride: Record<string, boolean>;
   badgeOverride: Record<string, TutorBadge[]>;
@@ -42,10 +53,40 @@ function seed(): DB {
     mkMsg("msg_s1a", "iq_seed_1", "demo_parent", "안녕하세요, MI 9월 정규반 레테 대비 프랩 문의드립니다.", "2026-08-01T09:00:00.000Z"),
     mkMsg("msg_s1b", "iq_seed_1", "tu_1", "네, MI 정규반 레테 프랩 상담 가능합니다. 아이 현재 레벨이 어떻게 되나요?", "2026-08-01T09:12:00.000Z"),
   ];
+  const reports: LessonReport[] = [
+    {
+      id: "rp_seed_1",
+      inquiry_id: "iq_seed_1",
+      tutor_id: "tu_1",
+      tutor_name: "김서연",
+      parent_id: "demo_parent",
+      academy_slug: "mi",
+      date: "2026-08-02",
+      content: "MI 기출 유형 원서 독해 2지문 + 서술형 라이팅 1문항 첨삭.",
+      progress_note: "라이팅 구조는 안정적. 어휘 정확도 보완 필요 — 다음 시간 어휘 집중.",
+      created_at: "2026-08-02T12:00:00.000Z",
+    },
+  ];
+  const reviews: Review[] = [
+    {
+      id: "rv_seed_1",
+      parent_id: "p_a",
+      parent_name: "학부모A",
+      tutor_id: "tu_1",
+      tutor_name: "김서연",
+      academy_slug: "mi",
+      rating: 5,
+      body: "MI 정규반 합격했습니다. 서술형 라이팅 첨삭이 정말 꼼꼼했어요.",
+      is_verified_pass: true,
+      created_at: "2026-07-28T12:00:00.000Z",
+    },
+  ];
   return {
     inquiries,
     messages,
     verifications: [],
+    reports,
+    reviews,
     tierOverride: {},
     verifiedOverride: {},
     badgeOverride: {},
@@ -204,4 +245,94 @@ export function reviewVerification(id: string, approve: boolean): void {
       list.push({ academy_id: v.academy_slug, label });
     }
   }
+}
+
+// ── 수업 리포트 (락인) ────────────────────────────────────
+// 튜터가 작성 → 학부모 대시보드에서만 열람. 플랫폼 밖(카톡)에는 없는 자산.
+export function createReport(input: {
+  inquiryId: string;
+  tutorId: string;
+  tutorName: string;
+  parentId: string;
+  academySlug?: string;
+  date: string;
+  content: string;
+  progressNote: string;
+}): LessonReport {
+  const d = db();
+  const rp: LessonReport = {
+    id: `rp_${++d.seq}`,
+    inquiry_id: input.inquiryId,
+    tutor_id: input.tutorId,
+    tutor_name: input.tutorName,
+    parent_id: input.parentId,
+    academy_slug: input.academySlug,
+    date: input.date || nowIso().slice(0, 10),
+    content: input.content,
+    progress_note: input.progressNote,
+    created_at: nowIso(),
+  };
+  d.reports.push(rp);
+  return rp;
+}
+
+export function listReportsForParent(parentId: string): LessonReport[] {
+  return db()
+    .reports.filter((r) => r.parent_id === parentId)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export function listReportsForInquiry(inquiryId: string): LessonReport[] {
+  return db()
+    .reports.filter((r) => r.inquiry_id === inquiryId)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// ── 합격 후기 ─────────────────────────────────────────────
+export function createReview(input: {
+  parentId: string;
+  parentName: string;
+  tutorId: string;
+  tutorName: string;
+  academySlug?: string;
+  rating: number;
+  body: string;
+  isVerifiedPass: boolean;
+}): Review {
+  const d = db();
+  const rv: Review = {
+    id: `rv_${++d.seq}`,
+    parent_id: input.parentId,
+    parent_name: input.parentName,
+    tutor_id: input.tutorId,
+    tutor_name: input.tutorName,
+    academy_slug: input.academySlug,
+    rating: Math.max(1, Math.min(5, input.rating)),
+    body: input.body,
+    is_verified_pass: input.isVerifiedPass,
+    created_at: nowIso(),
+  };
+  d.reviews.push(rv);
+  return rv;
+}
+
+export function listReviewsForTutor(tutorId: string): Review[] {
+  return db()
+    .reviews.filter((r) => r.tutor_id === tutorId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export function hasReviewed(parentId: string, tutorId: string): boolean {
+  return db().reviews.some((r) => r.parent_id === parentId && r.tutor_id === tutorId);
+}
+
+// 학부모가 대화한 튜터 목록 (후기 작성 대상)
+export function tutorsInquiredBy(parentId: string): { id: string; name: string; academySlug?: string }[] {
+  const seen = new Map<string, { id: string; name: string; academySlug?: string }>();
+  for (const iq of db().inquiries) {
+    if (iq.parent_id === parentId && !seen.has(iq.tutor_id)) {
+      seen.set(iq.tutor_id, { id: iq.tutor_id, name: iq.tutor_name, academySlug: iq.academy_slug });
+    }
+  }
+  return [...seen.values()];
 }

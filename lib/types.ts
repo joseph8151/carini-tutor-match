@@ -74,6 +74,32 @@ export interface Message {
   created_at: string;
 }
 
+export interface LessonReport {
+  id: string;
+  inquiry_id: string;
+  tutor_id: string;
+  tutor_name: string;
+  parent_id: string;
+  academy_slug?: string;
+  date: string; // 수업일
+  content: string; // 수업 내용
+  progress_note: string; // 진도/코멘트
+  created_at: string;
+}
+
+export interface Review {
+  id: string;
+  parent_id: string;
+  parent_name: string;
+  tutor_id: string;
+  tutor_name: string;
+  academy_slug?: string;
+  rating: number; // 1~5
+  body: string;
+  is_verified_pass: boolean; // 실제 합격 인증
+  created_at: string;
+}
+
 export interface Tutor {
   id: string;
   name: string;

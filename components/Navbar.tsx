@@ -20,6 +20,11 @@ export async function Navbar() {
           </Link>
           {user ? (
             <>
+              {user.role === "parent" && (
+                <Link href="/parent" className="hover:text-brand-600">
+                  내 학습
+                </Link>
+              )}
               {user.role === "tutor" && (
                 <Link href="/tutor" className="hover:text-brand-600">
                   내 튜터
