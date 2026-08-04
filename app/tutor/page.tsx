@@ -20,9 +20,13 @@ export default async function TutorHome({
   if (!user) redirect("/login?next=/tutor");
   if (user.role !== "tutor") redirect("/");
 
-  const [tutor, academies] = await Promise.all([getTutorById(user.id), getAcademies()]);
-  const verifications = listVerificationsForTutor(user.id);
-  const inquiryCount = listInquiriesFor(user.id).length;
+  const [tutor, academies, verifications, inquiries] = await Promise.all([
+    getTutorById(user.id),
+    getAcademies(),
+    listVerificationsForTutor(user.id),
+    listInquiriesFor(user.id),
+  ]);
+  const inquiryCount = inquiries.length;
   const tier = tutor?.subscription_tier ?? "free";
 
   return (

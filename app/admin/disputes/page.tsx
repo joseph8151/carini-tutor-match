@@ -10,7 +10,7 @@ export default async function AdminDisputes() {
   if (!user) redirect("/login?next=/admin/disputes");
   if (user.role !== "admin") redirect("/");
 
-  const disputes = listOpenDisputes();
+  const disputes = await listOpenDisputes();
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">

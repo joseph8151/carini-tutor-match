@@ -15,9 +15,8 @@ export default async function MockTestsPage({
   const user = await getSessionUser();
   const academies = await getAcademies();
   const tests = listMockTests();
-  const booked = new Set(
-    user?.role === "parent" ? listMockBookings(user.id).map((b) => b.mock_id) : [],
-  );
+  const bookings = user?.role === "parent" ? await listMockBookings(user.id) : [];
+  const booked = new Set(bookings.map((b) => b.mock_id));
   const academyName = (slug: string) => academies.find((a) => a.slug === slug)?.name ?? slug;
 
   return (

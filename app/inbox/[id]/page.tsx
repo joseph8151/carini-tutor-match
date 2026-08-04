@@ -27,7 +27,7 @@ export default async function ThreadPage({
   const user = await getSessionUser();
   if (!user) redirect(`/login?next=/inbox/${id}`);
 
-  const iq = getInquiry(id);
+  const iq = await getInquiry(id);
   if (!iq || (iq.parent_id !== user.id && iq.tutor_id !== user.id)) notFound();
 
   const isTutor = user.role === "tutor";
@@ -36,7 +36,7 @@ export default async function ThreadPage({
   // 무료 티어 튜터: 열람 한도 초과 대화는 페이월
   if (isTutor) {
     const me = await getTutorById(user.id);
-    if (lockedInquiryIds(user.id, me?.subscription_tier ?? "free").has(id)) {
+    if ((await lockedInquiryIds(user.id, me?.subscription_tier ?? "free")).has(id)) {
       return (
         <div className="mx-auto max-w-2xl space-y-4">
           <nav className="text-sm text-gray-400">
@@ -63,10 +63,12 @@ export default async function ThreadPage({
     }
   }
 
-  const messages = getMessages(id);
-  const reports = listReportsForInquiry(id);
-  const payment = getPaymentForInquiry(id);
-  const tutor = await getTutorById(iq.tutor_id);
+  const [messages, reports, payment, tutor] = await Promise.all([
+    getMessages(id),
+    listReportsForInquiry(id),
+    getPaymentForInquiry(id),
+    getTutorById(iq.tutor_id),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">

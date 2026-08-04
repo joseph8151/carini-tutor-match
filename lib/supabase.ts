@@ -20,3 +20,17 @@ export function getSupabase(): SupabaseClient | null {
   }
   return cached;
 }
+
+// 서버 전용: RLS 우회가 필요한 관리자 작업(인증 검수/분쟁 중재)용.
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let cachedService: SupabaseClient | null = null;
+
+export function getServiceSupabase(): SupabaseClient | null {
+  if (!url || !serviceKey) return null;
+  if (!cachedService) {
+    cachedService = createClient(url as string, serviceKey, {
+      auth: { persistSession: false },
+    });
+  }
+  return cachedService;
+}

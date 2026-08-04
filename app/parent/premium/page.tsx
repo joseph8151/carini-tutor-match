@@ -23,8 +23,7 @@ export default async function ParentPremiumPage({
   if (!user) redirect("/login?next=/parent/premium");
   if (user.role !== "parent") redirect("/");
 
-  const premium = isParentPremium(user.id);
-  const passes = getPasses(user.id);
+  const [premium, passes] = await Promise.all([isParentPremium(user.id), getPasses(user.id)]);
   const action = upgradeParentPremium;
 
   return (

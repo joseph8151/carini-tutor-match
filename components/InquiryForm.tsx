@@ -18,7 +18,7 @@ export async function InquiryForm({
 }) {
   const user = await getSessionUser();
   const canInquire = user?.role === "parent";
-  const passes = user?.role === "parent" ? getPasses(user.id).remaining : 0;
+  const passes = user?.role === "parent" ? (await getPasses(user.id)).remaining : 0;
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">

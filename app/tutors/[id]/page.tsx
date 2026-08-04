@@ -34,11 +34,11 @@ export default async function TutorDetailPage({
     getSessionUser(),
   ]);
   if (!tutor) notFound();
-  const reviews = listReviewsForTutor(tutor.id);
+  const reviews = await listReviewsForTutor(tutor.id);
   const canSeeDetail =
     user?.role === "admin" ||
     user?.role === "tutor" ||
-    (user?.role === "parent" && isParentPremium(user.id));
+    (user?.role === "parent" && (await isParentPremium(user.id)));
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">

@@ -23,3 +23,10 @@ union all
 select id, '2026-08-30', '2026-08-23', '가을학기 디베이트반' from academies where slug='edisen'
 union all
 select id, '2026-09-06', '2026-08-30', '프랩 집중반' from academies where slug='pi';
+
+insert into mock_tests (id, academy_slug, name, price, date) values
+  ('mk_mi', 'mi', 'MI 정규반 모의 레테', 40000, '2026-08-16'),
+  ('mk_twinkle', 'twinkle', '트윈클 입학 모의 레테', 30000, '2026-08-13'),
+  ('mk_edisen', 'edisen', '에디센 디베이트 모의 레테', 45000, '2026-08-24'),
+  ('mk_pi', 'pi', 'PI 프랩 모의 레테', 40000, '2026-08-30')
+on conflict (id) do nothing;

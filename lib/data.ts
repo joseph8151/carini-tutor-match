@@ -76,8 +76,44 @@ export interface TutorFilter {
   verifiedOnly?: boolean;
 }
 
+// tutor_profiles 행 → Tutor (공개 데이터). 뱃지는 별도 조회.
+function mapProfile(p: Record<string, unknown>, badges: Record<string, unknown>[]): Tutor {
+  const uid = p.user_id as string;
+  return {
+    id: uid,
+    name: (p.name as string) ?? "튜터",
+    bio: (p.bio as string) ?? "",
+    regions: (p.regions as string[]) ?? [],
+    subjects: (p.subjects as string[]) ?? [],
+    academy_slugs: (p.academy_slugs as string[]) ?? [],
+    base_rate: (p.base_rate as number) ?? 0,
+    rating_avg: Number(p.rating_avg ?? 0),
+    response_rate: Number(p.response_rate ?? 0),
+    subscription_tier: (p.subscription_tier as Tutor["subscription_tier"]) ?? "free",
+    is_verified: Boolean(p.is_verified),
+    pass_count: (p.pass_count as number) ?? 0,
+    badges: badges
+      .filter((b) => b.tutor_id === uid)
+      .map((b) => ({ academy_id: b.academy_id as string, label: b.label as string })),
+  };
+}
+
 export async function getTutors(filter: TutorFilter = {}): Promise<Tutor[]> {
-  // MVP: 시드 데이터 + 런타임 override(구독/인증) 병합. Supabase 전환 시 동일 시그니처로 교체.
+  const sb = getSupabase();
+  if (sb) {
+    let q = sb.from("tutor_profiles").select("*");
+    if (filter.academySlug) q = q.contains("academy_slugs", [filter.academySlug]);
+    if (filter.region) q = q.contains("regions", [filter.region]);
+    if (filter.subject) q = q.contains("subjects", [filter.subject]);
+    if (filter.verifiedOnly) q = q.eq("is_verified", true);
+    const { data: profs, error } = await q;
+    if (!error && profs) {
+      const ids = profs.map((p) => p.user_id);
+      const { data: badges } = await sb.from("tutor_badges").select("*").in("tutor_id", ids);
+      return rank(profs.map((p) => mapProfile(p, badges ?? [])));
+    }
+  }
+  // 시드 폴백 (데모): 인메모리 override 병합
   let list = seedTutors.map(mergeTutor);
   if (filter.academySlug) list = list.filter((t) => t.academy_slugs.includes(filter.academySlug!));
   if (filter.region) list = list.filter((t) => t.regions.includes(filter.region!));
@@ -87,6 +123,15 @@ export async function getTutors(filter: TutorFilter = {}): Promise<Tutor[]> {
 }
 
 export async function getTutorById(id: string): Promise<Tutor | null> {
+  const sb = getSupabase();
+  if (sb) {
+    const { data: p, error } = await sb.from("tutor_profiles").select("*").eq("user_id", id).maybeSingle();
+    if (!error && p) {
+      const { data: badges } = await sb.from("tutor_badges").select("*").eq("tutor_id", id);
+      return mapProfile(p, badges ?? []);
+    }
+    if (!error) return null; // Supabase 권위: 없으면 null
+  }
   const t = seedTutors.find((t) => t.id === id);
   return t ? mergeTutor(t) : null;
 }

@@ -28,14 +28,18 @@ export default async function ParentDashboard() {
   if (user.role !== "parent") redirect("/");
 
   const [academies, schedules] = await Promise.all([getAcademies(), getSchedules()]);
-  const inquiries = listInquiriesFor(user.id);
-  const reports = listReportsForParent(user.id);
-  const tutors = tutorsInquiredBy(user.id);
-  const premium = isParentPremium(user.id);
-  const passes = getPasses(user.id);
-  const mockBookings = listMockBookings(user.id);
-  const payments = listPaymentsForParent(user.id);
+  const [inquiries, reports, tutors, premium, passes, mockBookings, payments] = await Promise.all([
+    listInquiriesFor(user.id),
+    listReportsForParent(user.id),
+    tutorsInquiredBy(user.id),
+    isParentPremium(user.id),
+    getPasses(user.id),
+    listMockBookings(user.id),
+    listPaymentsForParent(user.id),
+  ]);
   const heldPayments = payments.filter((p) => p.status === "held" || p.status === "disputed");
+  const reviewedFlags = await Promise.all(tutors.map((t) => hasReviewed(user.id, t.id)));
+  const reviewed = new Set(tutors.filter((_, i) => reviewedFlags[i]).map((t) => t.id));
 
   // 문의한 학원 기준 다가오는 레테 일정
   const mySlugs = new Set(inquiries.map((i) => i.academy_slug).filter(Boolean) as string[]);
@@ -204,7 +208,7 @@ export default async function ParentDashboard() {
               >
                 <span className="font-semibold">{t.name} 튜터</span>
                 <span className="text-sm text-brand-600">
-                  {hasReviewed(user.id, t.id) ? "후기 완료 ✓" : "후기 작성 →"}
+                  {reviewed.has(t.id) ? "후기 완료 ✓" : "후기 작성 →"}
                 </span>
               </Link>
             ))}

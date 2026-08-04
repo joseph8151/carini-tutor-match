@@ -10,14 +10,14 @@ export default async function InboxPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?next=/inbox");
 
-  const inquiries = listInquiriesFor(user.id);
+  const inquiries = await listInquiriesFor(user.id);
   const isTutor = user.role === "tutor";
 
   // 무료 티어 튜터: 열람 한도 초과 대화 잠금
   let locked = new Set<string>();
   if (isTutor) {
     const me = await getTutorById(user.id);
-    locked = lockedInquiryIds(user.id, me?.subscription_tier ?? "free");
+    locked = await lockedInquiryIds(user.id, me?.subscription_tier ?? "free");
   }
 
   return (

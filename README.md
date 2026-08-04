@@ -65,20 +65,40 @@ npm run dev                  # http://localhost:3000
 ## 기술 스택
 
 - Next.js 15 (App Router) · TypeScript · Tailwind CSS
-- Supabase (Postgres · Auth · Storage · Realtime) — `supabase/migrations/0001_init.sql`
+- Supabase (Postgres · Auth · RLS) — `supabase/migrations/0001_init.sql`
 
-## DB
+## 데이터 계층 (Supabase / 인메모리 이중 백엔드)
+
+`lib/store.ts`·`lib/data.ts`는 **환경변수 유무로 백엔드를 자동 선택**합니다.
+
+- **Supabase 설정 시**: 인증 세션 클라이언트로 DB 조회(RLS 적용)가 단일 진실 소스.
+  공개 데이터(튜터·후기·학원)는 anon 클라이언트, 관리자 작업(인증 검수·분쟁 중재)은
+  service-role 키로 처리.
+- **미설정 시(데모)**: `globalThis` 인메모리 스토어 — E2E/데모가 검증하는 실행 경로.
+
+스키마 컬럼명은 `lib/types.ts` 필드명과 1:1로 맞춰 `select('*')` → 타입 매핑이 그대로 됩니다.
+
+> 이 리포의 데모/E2E는 인메모리 경로에서 32건 시나리오로 검증됩니다. Supabase 경로는
+> 동일 패턴(`lib/data.ts`)을 따르며 **라이브 프로젝트에서 최종 검증**이 필요합니다.
+
+## DB 설정 (Supabase)
 
 ```bash
-# Supabase 프로젝트에 스키마 + 시드 적용
-psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
-psql "$DATABASE_URL" -f supabase/seed.sql
+# 1) Supabase 프로젝트 생성 후 SQL Editor에서 순서대로 실행
+#    supabase/migrations/0001_init.sql   (스키마 + RLS + auth 트리거)
+#    supabase/seed.sql                    (학원·레테·일정·모의고사)
+# 2) Auth > Providers 에서 Kakao 활성화 (client id/secret)
+# 3) .env.local 채우기:
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...   # 서버 전용 (관리자 작업)
 ```
+
+가입 시 `handle_new_user` 트리거가 `users` 행을 자동 생성하고, `/onboarding`에서 역할을
+설정합니다. RLS는 참여자/소유자 기준으로 문의·메시지·리포트·결제 등을 보호합니다.
 
 ## 다음 단계 (로드맵)
 
-`docs/MVP.md` 7장 참고. **Sprint 1~5로 설계서 전 범위(탐색·매칭·인증·구독·락인·확장) 구현 완료.**
-남은 것은 **프로덕션 전환**: 인메모리 스토어(`lib/store.ts`) → Supabase 테이블
-(`inquiries`/`messages`/`verifications`/`lesson_reports`/`reviews`/`payments`/`disputes` 등)
-+ Realtime 구독, 실결제(토스/카카오페이) 연동, 레테 D-day 알림톡/이메일 발송,
-RLS 소유자 정책 마이그레이션.
+`docs/MVP.md` 7장 참고. **Sprint 1~5(전 범위) + Supabase 이중 백엔드 계층 구현 완료.**
+남은 것: 라이브 Supabase 프로젝트에서 DB/RLS 최종 검증, 카카오 OAuth 실연동,
+실결제(토스/카카오페이), 레테 D-day 알림톡/이메일, 메시지 Realtime 구독.

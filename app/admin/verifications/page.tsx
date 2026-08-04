@@ -10,7 +10,7 @@ export default async function AdminVerifications() {
   if (!user) redirect("/login?next=/admin/verifications");
   if (user.role !== "admin") redirect("/");
 
-  const pending = listPendingVerifications();
+  const pending = await listPendingVerifications();
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
