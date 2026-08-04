@@ -34,6 +34,33 @@ export interface TutorBadge {
   label: string;
 }
 
+export interface SessionUser {
+  id: string;
+  name: string;
+  role: Role | null; // null = 로그인했지만 역할 미선택(온보딩 필요)
+  demo?: boolean;
+}
+
+export interface Inquiry {
+  id: string;
+  parent_id: string;
+  parent_name: string;
+  tutor_id: string;
+  tutor_name: string;
+  academy_slug?: string;
+  status: "open" | "matched" | "closed";
+  created_at: string;
+  last_body: string;
+}
+
+export interface Message {
+  id: string;
+  inquiry_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+}
+
 export interface Tutor {
   id: string;
   name: string;

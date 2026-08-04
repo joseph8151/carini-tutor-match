@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getTutorById, getAcademies } from "@/lib/data";
 import { VerifiedBadge, TierBadge, AcademyBadge } from "@/components/Badges";
+import { InquiryForm } from "@/components/InquiryForm";
 
 export async function generateMetadata({
   params,
@@ -15,8 +16,15 @@ export async function generateMetadata({
   return { title: `${tutor.name} 튜터 — ${tutor.regions.join(", ")} 레테 전문` };
 }
 
-export default async function TutorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TutorDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ err?: string }>;
+}) {
   const { id } = await params;
+  const { err } = await searchParams;
   const [tutor, academies] = await Promise.all([getTutorById(id), getAcademies()]);
   if (!tutor) notFound();
 
@@ -95,20 +103,15 @@ export default async function TutorDetailPage({ params }: { params: Promise<{ id
         </div>
       </section>
 
-      {/* 문의 CTA (인앱 메시징 — Sprint 2에서 연결) */}
-      <div className="sticky bottom-4 flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
-        <div>
-          <p className="text-lg font-bold text-brand-600">
-            {tutor.base_rate.toLocaleString()}원<span className="text-sm text-gray-400">/회</span>
-          </p>
-          <p className="text-xs text-gray-400">플랫폼 내 문의로 연락처 노출 없이 상담</p>
-        </div>
-        <Link
-          href={`/login?next=/tutors/${tutor.id}`}
-          className="rounded-xl bg-brand-600 px-6 py-3 font-semibold text-white hover:bg-brand-700"
-        >
-          문의하기
-        </Link>
+      {/* 문의 (인앱 메시징) */}
+      <div className="sticky bottom-4">
+        <InquiryForm
+          tutorId={tutor.id}
+          tutorName={tutor.name}
+          academySlug={tutor.academy_slugs[0]}
+          baseRate={tutor.base_rate}
+          error={err}
+        />
       </div>
     </div>
   );
