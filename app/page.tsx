@@ -35,6 +35,12 @@ export default async function HomePage() {
           >
             학원별 레테 정보
           </Link>
+          <Link
+            href="/pricing"
+            className="rounded-xl border border-white/40 px-5 py-3 font-semibold text-white hover:bg-white/10"
+          >
+            요금/상품안내 보기
+          </Link>
         </div>
       </section>
 

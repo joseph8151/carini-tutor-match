@@ -1,10 +1,13 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { DEMO_COOKIE, getSessionUser } from "./session";
 import { createServerSupabase } from "./supabase/server";
+import { isSupabaseConfigured } from "./supabase";
+import { getPlan, type PlanId } from "./plans";
+import { isKakaoPayConfigured, kakaoReady } from "./kakaopay";
 import {
   addMessage,
   bookMock,
@@ -24,7 +27,7 @@ import {
   usePass,
 } from "./store";
 import { getAcademyBySlug, getTutorById } from "./data";
-import type { Role, SubscriptionTier } from "./types";
+import type { Role } from "./types";
 
 const COOKIE_OPTS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 7 };
 
@@ -116,14 +119,22 @@ export async function sendMessage(formData: FormData) {
   revalidatePath(`/inbox/${inquiryId}`);
 }
 
-// ── 구독 업그레이드 (MVP: 모의 결제. 실서비스=토스/카카오페이) ──
-export async function upgradePlan(plan: SubscriptionTier) {
+// ── 무료로 변경 (다운그레이드, 결제 없음) ─────────────────
+export async function downgradeToFree() {
   const user = await getSessionUser();
   if (user?.role !== "tutor") redirect("/login?next=/tutor/subscription");
-  await setTier(user.id, plan);
+  await setTier(user.id, "free");
   revalidatePath("/tutor/subscription");
   revalidatePath("/tutor");
   redirect("/tutor/subscription?ok=1");
+}
+
+// 결제 성공 시 상품(플랜) 적용
+async function grantPlan(userId: string, planId: PlanId) {
+  const plan = getPlan(planId);
+  if (!plan) return;
+  if (plan.audience === "tutor" && plan.tier) await setTier(userId, plan.tier);
+  if (plan.audience === "parent") await grantParentPremium(userId);
 }
 
 // ── 실적 인증 신청 (튜터) ─────────────────────────────────
@@ -210,14 +221,77 @@ export async function writeReview(formData: FormData) {
   redirect(`/tutors/${tutorId}?ok=review`);
 }
 
-// ── 학부모 프리미엄 (모의 결제) ───────────────────────────
-export async function upgradeParentPremium() {
+// ── 결제 시작: 카카오페이 결제창으로 이동 ─────────────────
+export async function startCheckout(formData: FormData) {
+  const planId = String(formData.get("plan") ?? "") as PlanId;
+  const plan = getPlan(planId);
+  if (!plan) redirect("/pricing");
   const user = await getSessionUser();
-  if (user?.role !== "parent") redirect("/login?next=/parent/premium");
-  await grantParentPremium(user.id);
-  revalidatePath("/parent");
-  revalidatePath("/parent/premium");
-  redirect("/parent/premium?ok=1");
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/checkout?plan=${planId}`)}`);
+
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const host = h.get("host") ?? "localhost:3000";
+  const origin = `${proto}://${host}`;
+  const orderId = `ord_${user.id}_${planId}_${Math.floor(Date.now() / 1000)}`;
+
+  const result = await kakaoReady({
+    orderId,
+    userId: user.id,
+    planId,
+    itemName: `카리니 튜터링 ${plan.name}`,
+    amount: plan.price,
+    origin,
+  });
+  if ("error" in result) redirect(`/checkout?plan=${planId}&err=${result.error}`);
+  redirect(result.redirectUrl);
+}
+
+// ── 데모 결제 완료 (카카오페이 키 미설정 시에만 노출) ──────
+// 실제 카드 결제창이 아니며, 결제 이후 상태 확인용으로만 명시적으로 제공.
+export async function demoCompletePurchase(formData: FormData) {
+  if (isKakaoPayConfigured) redirect("/pricing");
+  const planId = String(formData.get("plan") ?? "") as PlanId;
+  const plan = getPlan(planId);
+  if (!plan) redirect("/pricing");
+  const user = await getSessionUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/checkout?plan=${planId}`)}`);
+  await grantPlan(user.id, planId);
+  redirect(`/checkout/success?plan=${planId}`);
+}
+
+// 카카오페이 승인 콜백에서 호출 (플랜 적용)
+export async function applyPaidPlan(userId: string, planId: PlanId) {
+  await grantPlan(userId, planId);
+}
+
+// ── 이메일/비밀번호 로그인 (테스트 계정용) ────────────────
+export async function passwordLogin(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const next = String(formData.get("next") ?? "");
+  const dest = next && next.startsWith("/") ? next : "/parent";
+
+  if (isSupabaseConfigured) {
+    const sb = await createServerSupabase();
+    const { error } = (await sb?.auth.signInWithPassword({ email, password })) ?? { error: true };
+    if (error) redirect(`/login?err=cred${next ? `&next=${encodeURIComponent(next)}` : ""}`);
+    redirect(dest);
+  }
+
+  // 데모 모드: 환경변수 또는 기본 테스트 계정
+  const testEmail = process.env.TEST_MEMBER_EMAIL || "test@carini.demo";
+  const testPw = process.env.TEST_MEMBER_PASSWORD || "carini1234";
+  if (email === testEmail && password === testPw) {
+    const store = await cookies();
+    store.set(
+      DEMO_COOKIE,
+      JSON.stringify({ id: "test_member", name: "테스트회원", role: "parent" }),
+      COOKIE_OPTS,
+    );
+    redirect(dest);
+  }
+  redirect(`/login?err=cred${next ? `&next=${encodeURIComponent(next)}` : ""}`);
 }
 
 // ── 결제 보호: 첫 수업 안전결제 (에스크로 유사) ───────────

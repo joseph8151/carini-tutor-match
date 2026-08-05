@@ -97,6 +97,22 @@ SUPABASE_SERVICE_ROLE_KEY=...   # 서버 전용 (관리자 작업)
 가입 시 `handle_new_user` 트리거가 `users` 행을 자동 생성하고, `/onboarding`에서 역할을
 설정합니다. RLS는 참여자/소유자 기준으로 문의·메시지·리포트·결제 등을 보호합니다.
 
+## 결제 (카카오페이) · 카드사 심사 대응
+
+- **공개 요금 페이지** `/pricing` — 비회원도 상품/요금 열람 가능. "시작하기" → `/checkout`
+- **결제 경로** — 비회원이 결제를 시도하면 메인으로 튕기지 않고 **로그인으로 유도**(`?next=`),
+  로그인 후 결제 페이지로 복귀
+- **카카오페이 결제창** — `KAKAOPAY_SECRET_KEY` 설정 시 `/checkout`의 결제 버튼이 실제
+  카카오페이 결제창(ready→결제창→approve)으로 연결. 승인 콜백은 `/api/kakaopay/approve`
+- **키 미설정 시** — 가짜 카드창을 만들지 않고 "데모: 결제 완료 처리"로 명시. 운영에 키를
+  넣으면 그대로 실제 결제창이 동작
+- **테스트 계정(심사자 전달용)** — 이메일/비밀번호 로그인 지원.
+  - 데모 모드 기본값: `test@carini.demo` / `carini1234` (`.env`의 `TEST_MEMBER_*`로 변경)
+  - Supabase 운영 모드: Supabase Auth에 동일 계정 생성 후 사용 (`signInWithPassword`)
+
+> 심사 전 체크: ① 운영 배포에 `KAKAOPAY_SECRET_KEY`(+필요시 `KAKAOPAY_CID`) 설정,
+> ② 테스트 회원 계정 준비, ③ `요금 → 시작하기 → 로그인 → 결제창`까지 도달 확인.
+
 ## 다음 단계 (로드맵)
 
 `docs/MVP.md` 7장 참고. **Sprint 1~5(전 범위) + Supabase 이중 백엔드 계층 구현 완료.**

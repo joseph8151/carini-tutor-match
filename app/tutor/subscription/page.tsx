@@ -1,13 +1,15 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
 import { getTutorById } from "@/lib/data";
-import { upgradePlan } from "@/lib/actions";
+import { downgradeToFree } from "@/lib/actions";
 import type { SubscriptionTier } from "@/lib/types";
 
 export const metadata = { title: "구독 관리" };
 
 const PLANS: {
   tier: SubscriptionTier;
+  planId?: "tutor_pro" | "tutor_premium";
   name: string;
   price: string;
   perks: string[];
@@ -20,12 +22,14 @@ const PLANS: {
   },
   {
     tier: "pro",
+    planId: "tutor_pro",
     name: "프로",
     price: "월 29,000원",
     perks: ["검색 상위 노출", "문의 무제한 열람", "수업 리포트 작성", "노출/문의 통계"],
   },
   {
     tier: "premium",
+    planId: "tutor_premium",
     name: "프리미엄",
     price: "월 59,000원",
     perks: ["최상위 고정 노출", "학원별 전문 뱃지 강조", "실적 하이라이트", "우선 매칭권 공급"],
@@ -50,8 +54,7 @@ export default async function SubscriptionPage({
       <div>
         <h1 className="text-2xl font-bold">구독 관리</h1>
         <p className="mt-1 text-sm text-gray-500">
-          구독 등급이 검색 노출과 문의 열람 한도를 결정합니다. 결제는 데모(모의)이며 실서비스는
-          토스페이먼츠·카카오페이 정기결제로 연동됩니다.
+          구독 등급이 검색 노출과 문의 열람 한도를 결정합니다. 유료 등급은 카카오페이로 결제됩니다.
         </p>
       </div>
 
@@ -64,7 +67,6 @@ export default async function SubscriptionPage({
       <div className="grid gap-4 md:grid-cols-3">
         {PLANS.map((p) => {
           const isCurrent = p.tier === current;
-          const action = upgradePlan.bind(null, p.tier);
           return (
             <div
               key={p.tier}
@@ -82,18 +84,29 @@ export default async function SubscriptionPage({
                   </li>
                 ))}
               </ul>
-              <form action={action} className="mt-5">
-                <button
-                  disabled={isCurrent}
-                  className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold ${
-                    isCurrent
-                      ? "cursor-default bg-gray-100 text-gray-400"
-                      : "bg-brand-600 text-white hover:bg-brand-700"
-                  }`}
-                >
-                  {isCurrent ? "현재 이용 중" : `${p.name}(으)로 변경`}
-                </button>
-              </form>
+              <div className="mt-5">
+                {isCurrent ? (
+                  <button
+                    disabled
+                    className="w-full cursor-default rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-400"
+                  >
+                    현재 이용 중
+                  </button>
+                ) : p.planId ? (
+                  <Link
+                    href={`/checkout?plan=${p.planId}`}
+                    className="block w-full rounded-xl bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-brand-700"
+                  >
+                    카카오페이로 결제
+                  </Link>
+                ) : (
+                  <form action={downgradeToFree}>
+                    <button className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                      무료로 변경
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           );
         })}

@@ -21,6 +21,9 @@ export async function Navbar() {
           <Link href="/mock-tests" className="hover:text-brand-600">
             모의 레테
           </Link>
+          <Link href="/pricing" className="hover:text-brand-600">
+            요금
+          </Link>
           {user ? (
             <>
               {user.role === "parent" && (

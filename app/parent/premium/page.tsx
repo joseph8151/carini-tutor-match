@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
 import { isParentPremium, getPasses, PREMIUM_PASS_GRANT } from "@/lib/store";
-import { upgradeParentPremium } from "@/lib/actions";
 
 export const metadata = { title: "학부모 프리미엄" };
 
@@ -24,15 +23,13 @@ export default async function ParentPremiumPage({
   if (user.role !== "parent") redirect("/");
 
   const [premium, passes] = await Promise.all([isParentPremium(user.id), getPasses(user.id)]);
-  const action = upgradeParentPremium;
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">학부모 프리미엄</h1>
         <p className="mt-1 text-sm text-gray-500">
-          우리 아이 레테 준비를 우선순위로. 결제는 데모(모의)이며 실서비스는 토스/카카오페이
-          정기결제로 연동됩니다.
+          우리 아이 레테 준비를 우선순위로. 결제는 카카오페이로 진행됩니다.
         </p>
       </div>
 
@@ -64,11 +61,12 @@ export default async function ParentPremiumPage({
             </Link>
           </div>
         ) : (
-          <form action={action} className="mt-5">
-            <button className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white hover:bg-brand-700">
-              프리미엄 시작 (모의 결제)
-            </button>
-          </form>
+          <Link
+            href="/checkout?plan=parent_premium"
+            className="mt-5 block w-full rounded-xl bg-brand-600 px-4 py-3 text-center font-semibold text-white hover:bg-brand-700"
+          >
+            프리미엄 시작 (카카오페이)
+          </Link>
         )}
       </div>
 
