@@ -44,6 +44,34 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* 미션 · 학습 센터 진입 */}
+      <section className="grid gap-4 md:grid-cols-2">
+        <Link
+          href="/learning-center"
+          className="rounded-2xl border border-gray-200 bg-gradient-to-br from-brand-50 to-white p-6 transition hover:border-brand-500 hover:shadow-sm"
+        >
+          <p className="text-sm font-semibold text-brand-600">🌏 우리의 큰 목표</p>
+          <h3 className="mt-1 text-lg font-bold">어디에 살든, 최고 수준의 영어 교육을.</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            대치동·목동·송도 국제학교를 목표로 하는 아이들이 지방 어디서나 같은 수준으로 —
+            AI로 사교육 격차를 좁힙니다.
+          </p>
+          <p className="mt-3 text-sm font-semibold text-brand-600">미션 자세히 보기 →</p>
+        </Link>
+        <Link
+          href="/learning-center"
+          className="rounded-2xl border border-gray-200 bg-white p-6 transition hover:border-brand-500 hover:shadow-sm"
+        >
+          <p className="text-sm font-semibold text-brand-600">📈 학습 센터</p>
+          <h3 className="mt-1 text-lg font-bold">우리 아이는 어디서 시작할까?</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            파닉스를 뗀 초등부터 상위권 레테를 준비하는 중등까지, 시작 수준 가이드와 1·3·6·12개월
+            성장 로드맵을 확인하세요.
+          </p>
+          <p className="mt-3 text-sm font-semibold text-brand-600">시작 수준 확인 →</p>
+        </Link>
+      </section>
+
       {/* 학원 허브 진입 */}
       <section>
         <h2 className="mb-4 text-xl font-bold">학원별 레테 허브</h2>

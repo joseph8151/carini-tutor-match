@@ -18,6 +18,9 @@ export async function Navbar() {
           <Link href="/academy/mi" className="hover:text-brand-600">
             학원별 레테
           </Link>
+          <Link href="/learning-center" className="hover:text-brand-600">
+            학습 센터
+          </Link>
           <Link href="/mock-tests" className="hover:text-brand-600">
             모의 레테
           </Link>
