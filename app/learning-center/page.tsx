@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "학습 센터 — 진단 테스트 · 월 구독 프렙 · 성장 로드맵",
   description:
-    "카리니 테스트 프랩 센터: 진단으로 정확히 알고(SR·MAP·빅10 레테), AI 월 구독 프렙으로 매일 실력을 올려요. 만 2세 파닉스부터 네이티브급까지, 전국 어디서나 프렙학원 수준으로.",
+    "카리니 프랩 센터: 시험 대비(테스트 프랩)와 매일 공부가 함께 되는 온라인 스쿨. 진단으로 정확히 알고(SR·MAP·빅10 레테), AI 월 구독 프렙으로 실력을 올려요. 만 2세 파닉스부터 네이티브급까지, 전국 어디서나.",
 };
 
 /* ─────────────────────────  일러스트 (자체 제작 SVG)  ───────────────────────── */
@@ -206,9 +206,12 @@ export default function LearningCenterPage() {
       {/* 두 가지 서비스 */}
       <section>
         <div className="text-center">
-          <p className="text-sm font-semibold text-brand-600">🏫 두 가지 서비스를 운영해요</p>
-          <h2 className="mt-2 text-2xl font-bold">진단으로 정확히 알고, 학습으로 실력을 올려요</h2>
-          <p className="mt-2 text-gray-500">카리니 테스트 프랩 센터는 <b>진단 테스트</b>와 <b>학습 센터</b> 두 축으로 운영해요.</p>
+          <p className="text-sm font-semibold text-brand-600">🏫 카리니 프랩 센터</p>
+          <h2 className="mt-2 text-2xl font-bold">시험 대비도, 매일 공부도 되는 온라인 스쿨</h2>
+          <p className="mt-2 text-gray-500">
+            레테·학원 시험 대비(<b>테스트 프랩</b>)와 꾸준한 자기주도 공부(<b>스터디</b>)를 한 곳에서.
+            카리니 프랩 센터는 <b>진단 테스트</b>와 <b>학습 센터</b> 두 축으로 운영해요.
+          </p>
         </div>
         <div className="mx-auto mt-5 flex max-w-md items-center justify-center gap-3 text-sm font-semibold">
           <span className="rounded-full bg-brand-600 px-4 py-2 text-white">🎯 진단</span>
