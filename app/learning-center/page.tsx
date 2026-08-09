@@ -238,6 +238,12 @@ export default function LearningCenterPage() {
                   </li>
                 ))}
               </ul>
+              <Link
+                href="/diagnosis"
+                className="mt-4 block rounded-xl bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-brand-700"
+              >
+                무료 레벨 진단 시작 →
+              </Link>
             </div>
           </div>
           {/* 학습 */}

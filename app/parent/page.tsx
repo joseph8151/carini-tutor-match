@@ -11,6 +11,7 @@ import {
   getPasses,
   listMockBookings,
   listPaymentsForParent,
+  getLatestDiagnosis,
 } from "@/lib/store";
 
 export const metadata = { title: "내 학습" };
@@ -37,6 +38,7 @@ export default async function ParentDashboard() {
     listMockBookings(user.id),
     listPaymentsForParent(user.id),
   ]);
+  const diagnosis = await getLatestDiagnosis(user.id);
   const heldPayments = payments.filter((p) => p.status === "held" || p.status === "disputed");
   const reviewedFlags = await Promise.all(tutors.map((t) => hasReviewed(user.id, t.id)));
   const reviewed = new Set(tutors.filter((_, i) => reviewedFlags[i]).map((t) => t.id));
@@ -83,6 +85,29 @@ export default async function ParentDashboard() {
           className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
         >
           {premium ? "관리" : "업그레이드"}
+        </Link>
+      </section>
+
+      {/* 레벨 진단 */}
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-5">
+        <div>
+          <p className="font-bold">레벨 진단</p>
+          {diagnosis ? (
+            <p className="mt-1 text-sm text-gray-500">
+              최근 결과 · 또래 백분위 <b className="text-brand-600">{diagnosis.percentile}</b> · 추천
+              레벨 <b>{diagnosis.level}</b> · {diagnosis.pass_ready ? "상위권 레테 도전 가능" : "향상 집중 단계"}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-gray-500">
+              아직 진단 기록이 없어요. 5분 진단으로 현재 레벨과 약점을 확인해 보세요.
+            </p>
+          )}
+        </div>
+        <Link
+          href={diagnosis ? "/diagnosis/result" : "/diagnosis"}
+          className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          {diagnosis ? "결과 보기" : "진단 받기"}
         </Link>
       </section>
 

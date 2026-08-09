@@ -176,6 +176,21 @@ create table if not exists mock_bookings (
   unique (parent_id, mock_id)
 );
 
+create table if not exists diagnoses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  overall integer not null,
+  percentile integer not null,
+  level integer not null,
+  reading integer not null,
+  vocab integer not null,
+  grammar integer not null,
+  pass_ready boolean not null default false,
+  recommendation text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_diagnoses_user on diagnoses (user_id, created_at desc);
+
 -- ── 인덱스 ────────────────────────────────────────────────
 create index if not exists idx_tutor_rank on tutor_profiles (subscription_tier, rating_avg desc);
 create index if not exists idx_inquiries_parent on inquiries (parent_id, created_at desc);
@@ -256,6 +271,9 @@ create policy "own passes" on parent_passes for all
 alter table mock_bookings enable row level security;
 create policy "own bookings" on mock_bookings for all
   using (auth.uid() = parent_id) with check (auth.uid() = parent_id);
+alter table diagnoses enable row level security;
+create policy "own diagnoses" on diagnoses for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- 관리자 작업(인증 검수/분쟁 중재)은 서버의 service-role 키로 수행 → RLS 우회.
 -- (SUPABASE_SERVICE_ROLE_KEY, 서버 전용)

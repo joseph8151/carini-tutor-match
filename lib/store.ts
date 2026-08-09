@@ -1,4 +1,5 @@
 import type {
+  DiagnosisRecord,
   Dispute,
   Inquiry,
   LessonReport,
@@ -52,6 +53,7 @@ interface DB {
   payments: Payment[];
   disputes: Dispute[];
   mockBookings: MockBooking[];
+  diagnoses: DiagnosisRecord[];
   parentPremium: Record<string, boolean>;
   passes: Record<string, PassInfo>;
   tierOverride: Record<string, SubscriptionTier>;
@@ -99,8 +101,8 @@ function seed(): DB {
   ];
   return {
     inquiries, messages, verifications: [], reports, reviews, payments: [], disputes: [],
-    mockBookings: [], parentPremium: {}, passes: {}, tierOverride: {}, verifiedOverride: {},
-    badgeOverride: {}, seq: 100,
+    mockBookings: [], diagnoses: [], parentPremium: {}, passes: {}, tierOverride: {},
+    verifiedOverride: {}, badgeOverride: {}, seq: 100,
   };
 }
 
@@ -584,4 +586,31 @@ export async function listMockBookings(parentId: string): Promise<MockBooking[]>
     return (data as MockBooking[]) ?? [];
   }
   return db().mockBookings.filter((b) => b.parent_id === parentId).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ── 레벨 진단 결과 ────────────────────────────────────────
+export async function saveDiagnosis(input: Omit<DiagnosisRecord, "id" | "created_at">): Promise<DiagnosisRecord> {
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb.from("diagnoses").insert(input).select().single();
+    return data as DiagnosisRecord;
+  }
+  const d = db();
+  const rec: DiagnosisRecord = { ...input, id: `dg_${++d.seq}`, created_at: nowIso() };
+  d.diagnoses.push(rec);
+  return rec;
+}
+
+export async function getLatestDiagnosis(userId: string): Promise<DiagnosisRecord | null> {
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb
+      .from("diagnoses").select("*").eq("user_id", userId)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    return (data as DiagnosisRecord) ?? null;
+  }
+  return (
+    db().diagnoses.filter((x) => x.user_id === userId).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ??
+    null
+  );
 }

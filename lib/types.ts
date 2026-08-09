@@ -147,6 +147,20 @@ export interface Review {
   created_at: string;
 }
 
+export interface DiagnosisRecord {
+  id: string;
+  user_id: string;
+  overall: number;
+  percentile: number;
+  level: number;
+  reading: number;
+  vocab: number;
+  grammar: number;
+  pass_ready: boolean;
+  recommendation: string;
+  created_at: string;
+}
+
 export interface Tutor {
   id: string;
   name: string;

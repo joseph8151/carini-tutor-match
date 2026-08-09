@@ -27,6 +27,8 @@ import {
   usePass,
 } from "./store";
 import { getAcademyBySlug, getTutorById } from "./data";
+import { QUESTIONS, scoreDiagnosis } from "./diagnosis";
+import { saveDiagnosis } from "./store";
 import type { Role } from "./types";
 
 const COOKIE_OPTS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 7 };
@@ -338,6 +340,30 @@ export async function decideDispute(formData: FormData) {
   const refund = String(formData.get("decision") ?? "") === "refund";
   await resolveDispute(disputeId, refund);
   revalidatePath("/admin/disputes");
+}
+
+// ── 레벨 진단 제출 ────────────────────────────────────────
+export async function submitDiagnosis(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) redirect("/login?next=/diagnosis/test");
+  const answers: Record<string, number> = {};
+  for (const q of QUESTIONS) {
+    const v = formData.get(`q_${q.id}`);
+    if (v !== null) answers[q.id] = Number(v);
+  }
+  const s = scoreDiagnosis(answers);
+  await saveDiagnosis({
+    user_id: user.id,
+    overall: s.overall,
+    percentile: s.percentile,
+    level: s.level,
+    reading: s.byCategory.reading,
+    vocab: s.byCategory.vocab,
+    grammar: s.byCategory.grammar,
+    pass_ready: s.passReady,
+    recommendation: s.recommendation,
+  });
+  redirect("/diagnosis/result");
 }
 
 // ── 모의 레테 신청 ────────────────────────────────────────
