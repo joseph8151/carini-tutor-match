@@ -3,6 +3,7 @@ import type {
   Dispute,
   Inquiry,
   LessonReport,
+  MatchRequest,
   Message,
   MockBooking,
   PassInfo,
@@ -54,6 +55,7 @@ interface DB {
   disputes: Dispute[];
   mockBookings: MockBooking[];
   diagnoses: DiagnosisRecord[];
+  matchRequests: MatchRequest[];
   parentPremium: Record<string, boolean>;
   passes: Record<string, PassInfo>;
   tierOverride: Record<string, SubscriptionTier>;
@@ -101,7 +103,7 @@ function seed(): DB {
   ];
   return {
     inquiries, messages, verifications: [], reports, reviews, payments: [], disputes: [],
-    mockBookings: [], diagnoses: [], parentPremium: {}, passes: {}, tierOverride: {},
+    mockBookings: [], diagnoses: [], matchRequests: [], parentPremium: {}, passes: {}, tierOverride: {},
     verifiedOverride: {}, badgeOverride: {}, seq: 100,
   };
 }
@@ -613,4 +615,34 @@ export async function getLatestDiagnosis(userId: string): Promise<DiagnosisRecor
     db().diagnoses.filter((x) => x.user_id === userId).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ??
     null
   );
+}
+
+// ── 매칭 신청 (하이브리드 튜터 매칭 플로우) ────────────────
+// 최종 매칭은 운영자가 검토·승인한다 — 여기서는 신청 접수만 담당(자동 매칭 없음).
+export async function createMatchRequest(
+  input: Omit<MatchRequest, "id" | "status" | "created_at" | "updated_at">
+): Promise<MatchRequest> {
+  const now = nowIso();
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb
+      .from("match_requests")
+      .insert({ ...input, status: "new" })
+      .select()
+      .single();
+    return data as MatchRequest;
+  }
+  const d = db();
+  const req: MatchRequest = { ...input, id: `mr_${++d.seq}`, status: "new", created_at: now, updated_at: now };
+  d.matchRequests.push(req);
+  return req;
+}
+
+export async function getMatchRequestById(id: string): Promise<MatchRequest | null> {
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb.from("match_requests").select("*").eq("id", id).maybeSingle();
+    return (data as MatchRequest) ?? null;
+  }
+  return db().matchRequests.find((r) => r.id === id) ?? null;
 }

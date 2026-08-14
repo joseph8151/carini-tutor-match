@@ -147,6 +147,63 @@ export interface Review {
   created_at: string;
 }
 
+// ── 매칭 신청 (하이브리드 튜터 매칭 플로우) ────────────────
+export type LessonType = "visit" | "online" | "either";
+export type TutorPreference = "none" | "female" | "male" | "native";
+
+export type MatchRequestStatus =
+  | "new"
+  | "reviewing"
+  | "tutor_contacting"
+  | "tutor_confirmed"
+  | "proposal_sent"
+  | "payment_pending"
+  | "paid"
+  | "lesson_scheduled"
+  | "completed"
+  | "cancelled";
+
+export interface MatchRequest {
+  id: string;
+  user_id?: string; // 로그인 사용자면 연결, 비회원 신청도 허용
+  parent_name: string;
+  mobile: string;
+  child_age: string;
+  child_grade: string;
+  location: string;
+  lesson_type: LessonType;
+  english_level: string;
+  goals: string[];
+  lessons_per_week: string;
+  preferred_days: string[];
+  preferred_times: string[];
+  tutor_preference: TutorPreference;
+  requested_tutor_id?: string;
+  requested_tutor_name?: string;
+  notes?: string;
+  status: MatchRequestStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MatchRecommendationStatus =
+  | "suggested"
+  | "parent_selected"
+  | "rejected"
+  | "tutor_unavailable"
+  | "confirmed";
+
+export interface MatchRecommendation {
+  id: string;
+  match_request_id: string;
+  tutor_id: string;
+  tutor_name: string;
+  admin_reason: string;
+  available_schedule?: string;
+  status: MatchRecommendationStatus;
+  created_at: string;
+}
+
 export interface DiagnosisRecord {
   id: string;
   user_id: string;

@@ -12,6 +12,7 @@ import {
   addMessage,
   bookMock,
   createInquiry,
+  createMatchRequest,
   createPayment,
   createReport,
   createReview,
@@ -29,6 +30,7 @@ import {
 import { getAcademyBySlug, getTutorById } from "./data";
 import { QUESTIONS, scoreDiagnosis } from "./diagnosis";
 import { saveDiagnosis } from "./store";
+import { matchRequestSchema, type MatchRequestInput } from "./match";
 import type { Role } from "./types";
 
 const COOKIE_OPTS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 7 };
@@ -375,4 +377,19 @@ export async function bookMockTest(formData: FormData) {
   revalidatePath("/mock-tests");
   revalidatePath("/parent");
   redirect("/mock-tests?ok=1");
+}
+
+// ── 매칭 신청 (하이브리드 튜터 매칭 플로우) ────────────────
+// 자동 매칭 없음: 신청을 접수하고, 최종 매칭은 운영자가 검토·승인한다.
+export async function submitMatchRequest(
+  input: MatchRequestInput
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const parsed = matchRequestSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 다시 확인해 주세요." };
+  }
+  const user = await getSessionUser();
+  const req = await createMatchRequest({ ...parsed.data, user_id: user?.id });
+  revalidatePath("/admin/matches");
+  return { ok: true, id: req.id };
 }
