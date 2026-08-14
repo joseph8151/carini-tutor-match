@@ -74,6 +74,8 @@ export interface TutorFilter {
   region?: string;
   subject?: string;
   verifiedOnly?: boolean;
+  ageBand?: NonNullable<Tutor["age_bands"]>[number];
+  tutorType?: NonNullable<Tutor["tutor_type"]>;
 }
 
 // tutor_profiles 행 → Tutor (공개 데이터). 뱃지는 별도 조회.
@@ -92,6 +94,16 @@ function mapProfile(p: Record<string, unknown>, badges: Record<string, unknown>[
     subscription_tier: (p.subscription_tier as Tutor["subscription_tier"]) ?? "free",
     is_verified: Boolean(p.is_verified),
     pass_count: (p.pass_count as number) ?? 0,
+    is_native: p.is_native as boolean | undefined,
+    tutor_type: p.tutor_type as Tutor["tutor_type"],
+    country: p.country as string | undefined,
+    university: p.university as string | undefined,
+    major: p.major as string | undefined,
+    years_experience: p.years_experience as number | undefined,
+    age_focus: p.age_focus as string | undefined,
+    age_bands: p.age_bands as Tutor["age_bands"],
+    lesson_modes: p.lesson_modes as Tutor["lesson_modes"],
+    availability: p.availability as Tutor["availability"],
     badges: badges
       .filter((b) => b.tutor_id === uid)
       .map((b) => ({ academy_id: b.academy_id as string, label: b.label as string })),
@@ -106,6 +118,8 @@ export async function getTutors(filter: TutorFilter = {}): Promise<Tutor[]> {
     if (filter.region) q = q.contains("regions", [filter.region]);
     if (filter.subject) q = q.contains("subjects", [filter.subject]);
     if (filter.verifiedOnly) q = q.eq("is_verified", true);
+    if (filter.ageBand) q = q.contains("age_bands", [filter.ageBand]);
+    if (filter.tutorType) q = q.eq("tutor_type", filter.tutorType);
     const { data: profs, error } = await q;
     if (!error && profs) {
       const ids = profs.map((p) => p.user_id);
@@ -119,6 +133,8 @@ export async function getTutors(filter: TutorFilter = {}): Promise<Tutor[]> {
   if (filter.region) list = list.filter((t) => t.regions.includes(filter.region!));
   if (filter.subject) list = list.filter((t) => t.subjects.includes(filter.subject!));
   if (filter.verifiedOnly) list = list.filter((t) => t.is_verified);
+  if (filter.ageBand) list = list.filter((t) => t.age_bands?.includes(filter.ageBand!));
+  if (filter.tutorType) list = list.filter((t) => t.tutor_type === filter.tutorType);
   return rank(list);
 }
 

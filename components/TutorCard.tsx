@@ -1,41 +1,64 @@
 import Link from "next/link";
+import { GraduationCap, MapPin } from "lucide-react";
 import type { Tutor } from "@/lib/types";
-import { VerifiedBadge, TierBadge, AcademyBadge } from "./Badges";
+import { CariniBadge, AvailabilityTag } from "./Badges";
+
+const TUTOR_TYPE_LABEL = { native: "Native English Tutor", bilingual: "Bilingual Tutor", korean: undefined } as const;
 
 export function TutorCard({ tutor }: { tutor: Tutor }) {
+  const typeLabel = tutor.tutor_type ? TUTOR_TYPE_LABEL[tutor.tutor_type] : undefined;
+
   return (
     <Link
       href={`/tutors/${tutor.id}`}
-      className="block rounded-2xl border border-gray-200 bg-white p-5 transition hover:border-brand-500 hover:shadow-sm"
+      className="block rounded-2xl border border-softgray bg-warmwhite p-5 transition hover:border-brand-300"
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold">{tutor.name} 튜터</h3>
-            {tutor.is_verified && <VerifiedBadge />}
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-butter-100 font-sans text-[15px] font-bold text-brand-700">
+            {tutor.name[0]}
+          </span>
+          <div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h3 className="text-[15px] font-bold text-brand-700">{tutor.name} 튜터</h3>
+              {tutor.country && <span className="text-xs text-charcoal/40">· {tutor.country}</span>}
+            </div>
+            {typeLabel && <p className="text-xs font-medium text-brand-600/70">{typeLabel}</p>}
           </div>
-          <p className="mt-0.5 text-xs text-gray-500">{tutor.regions.join(" · ")}</p>
         </div>
-        <TierBadge tier={tutor.subscription_tier} />
+        {tutor.is_verified && <CariniBadge />}
       </div>
 
-      <p className="mt-3 line-clamp-2 text-sm text-gray-600">{tutor.bio}</p>
+      {(tutor.university || tutor.major || tutor.years_experience) && (
+        <div className="mt-3 flex items-start gap-1.5 text-[12.5px] text-charcoal/60">
+          <GraduationCap size={14} className="mt-0.5 shrink-0 text-brand-600/50" />
+          <span>
+            {tutor.university ? `${tutor.university} · ` : ""}
+            {tutor.major}
+            {tutor.years_experience ? ` · ${tutor.years_experience} Years Experience` : ""}
+          </span>
+        </div>
+      )}
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {tutor.badges.map((b) => (
-          <AcademyBadge key={b.academy_id} label={b.label} />
+      <p className="mt-3 line-clamp-2 text-sm text-charcoal/60">{tutor.bio}</p>
+
+      {tutor.age_focus && <p className="mt-3 text-xs font-semibold text-brand-600/70">Best For: {tutor.age_focus}</p>}
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {tutor.subjects.slice(0, 4).map((s) => (
+          <span key={s} className="rounded-full bg-cream px-2.5 py-1 text-[11px] font-medium text-brand-700">
+            {s}
+          </span>
         ))}
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-sm">
-        <span className="font-semibold text-gray-900">
-          ★ {tutor.rating_avg.toFixed(1)}
-          <span className="ml-2 font-normal text-gray-400">합격 {tutor.pass_count}건</span>
+      <div className="mt-4 flex items-center justify-between border-t border-softgray pt-3 text-sm">
+        <span className="flex items-center gap-1 text-[12.5px] text-charcoal/50">
+          <MapPin size={12} /> {tutor.regions.join(" · ")}
         </span>
-        <span className="font-semibold text-brand-600">
-          {tutor.base_rate.toLocaleString()}원<span className="text-xs text-gray-400">/회</span>
-        </span>
+        <AvailabilityTag status={tutor.availability} />
       </div>
+      <p className="mt-2 text-right text-[12px] text-charcoal/35">수업료 보기 →</p>
     </Link>
   );
 }

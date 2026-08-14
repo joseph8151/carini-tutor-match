@@ -29,3 +29,28 @@ export function AcademyBadge({ label }: { label: string }) {
     </span>
   );
 }
+
+// 고객 화면용 단일 인증 뱃지 — 여러 뱃지를 나열하지 않고 하나로 요약한다.
+export function CariniBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-butter-100 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
+      ✓ 카리니 인증 튜터
+    </span>
+  );
+}
+
+const AVAILABILITY_MAP = {
+  available: { label: "매칭 가능", dot: "bg-emerald-500" },
+  limited: { label: "자리 적음", dot: "bg-butter-600" },
+  waitlist: { label: "대기 등록", dot: "bg-charcoal/30" },
+} as const;
+
+export function AvailabilityTag({ status = "available" }: { status?: keyof typeof AVAILABILITY_MAP }) {
+  const { label, dot } = AVAILABILITY_MAP[status];
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-charcoal/55">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
+}

@@ -240,6 +240,14 @@ export interface Tutor {
   major?: string;
   years_experience?: number;
   age_focus?: string; // 예: "만 3–7세"
+  age_bands?: ("toddler" | "kinder" | "elementary" | "grade4plus")[]; // 검색 필터용
   lesson_modes?: ("visit" | "online")[];
   availability?: "available" | "limited" | "waitlist";
 }
+
+export const AGE_BAND_LABELS: Record<NonNullable<Tutor["age_bands"]>[number], string> = {
+  toddler: "2–4세",
+  kinder: "5–7세",
+  elementary: "Elementary",
+  grade4plus: "Grade 4+",
+};
