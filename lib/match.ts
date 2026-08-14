@@ -80,3 +80,19 @@ export type MatchRequestInput = z.infer<typeof matchRequestSchema>;
 export const MATCH_STEP_SCHEMAS = [step1Schema, step2Schema, step3Schema, step4Schema] as const;
 
 export const MATCH_STEP_TITLES = ["아이 정보", "영어 수준과 목표", "지역과 일정", "튜터 선호 및 연락처"] as const;
+
+// 운영자 매칭 파이프라인 상태
+export const MATCH_STATUS_LABELS = {
+  new: "신규 접수",
+  reviewing: "검토 중",
+  tutor_contacting: "튜터 컨택 중",
+  tutor_confirmed: "튜터 일정 확정",
+  proposal_sent: "매칭 제안 발송",
+  payment_pending: "결제 대기",
+  paid: "결제 완료",
+  lesson_scheduled: "수업 일정 확정",
+  completed: "수업 완료",
+  cancelled: "취소",
+} as const;
+
+export const MATCH_STATUS_ORDER = Object.keys(MATCH_STATUS_LABELS) as (keyof typeof MATCH_STATUS_LABELS)[];

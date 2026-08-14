@@ -3,7 +3,9 @@ import type {
   Dispute,
   Inquiry,
   LessonReport,
+  MatchRecommendation,
   MatchRequest,
+  MatchRequestStatus,
   Message,
   MockBooking,
   PassInfo,
@@ -56,6 +58,7 @@ interface DB {
   mockBookings: MockBooking[];
   diagnoses: DiagnosisRecord[];
   matchRequests: MatchRequest[];
+  matchRecommendations: MatchRecommendation[];
   parentPremium: Record<string, boolean>;
   passes: Record<string, PassInfo>;
   tierOverride: Record<string, SubscriptionTier>;
@@ -101,9 +104,41 @@ function seed(): DB {
       is_verified_pass: true, created_at: "2026-07-28T12:00:00.000Z",
     },
   ];
+  const matchRequests: MatchRequest[] = [
+    {
+      id: "mr_seed_1", parent_name: "이수정", mobile: "010-2222-3333", child_age: "만 5세", child_grade: "유치원 5세반",
+      location: "강남", lesson_type: "either", english_level: "Basic Conversation",
+      goals: ["영어 노출", "Speaking", "Phonics"], lessons_per_week: "주 2회",
+      preferred_days: ["화", "목"], preferred_times: ["Afternoon"], tutor_preference: "native",
+      notes: "낯가림이 있는 편이라 첫 수업은 놀이 위주로 부탁드려요.",
+      status: "new", created_at: "2026-08-10T09:00:00.000Z", updated_at: "2026-08-10T09:00:00.000Z",
+    },
+    {
+      id: "mr_seed_2", parent_name: "박준영", mobile: "010-4444-5555", child_age: "초등 2학년", child_grade: "초등 2학년",
+      location: "목동", lesson_type: "visit", english_level: "Reading",
+      goals: ["Reading", "Writing", "Academy Level Test Prep"], lessons_per_week: "주 2회",
+      preferred_days: ["월", "수"], preferred_times: ["Evening"], tutor_preference: "none",
+      requested_tutor_id: "tu_native_2", requested_tutor_name: "Michael",
+      status: "reviewing", created_at: "2026-08-08T11:00:00.000Z", updated_at: "2026-08-09T10:00:00.000Z",
+    },
+    {
+      id: "mr_seed_3", parent_name: "정혜림", mobile: "010-6666-7777", child_age: "만 4세", child_grade: "어린이집 4세반",
+      location: "온라인", lesson_type: "online", english_level: "Beginner (처음 시작)",
+      goals: ["영어 노출", "Phonics"], lessons_per_week: "주 1회",
+      preferred_days: ["금"], preferred_times: ["Morning"], tutor_preference: "native",
+      status: "tutor_confirmed", created_at: "2026-08-05T08:00:00.000Z", updated_at: "2026-08-07T09:30:00.000Z",
+    },
+  ];
+  const matchRecommendations: MatchRecommendation[] = [
+    {
+      id: "mrec_seed_1", match_request_id: "mr_seed_3", tutor_id: "tu_native_3", tutor_name: "Jenny",
+      admin_reason: "만 2~5세 놀이 영어 전문이고 현재 금요일 오전 온라인 수업이 가능합니다.",
+      available_schedule: "금요일 오전 10~11시", status: "confirmed", created_at: "2026-08-07T09:30:00.000Z",
+    },
+  ];
   return {
     inquiries, messages, verifications: [], reports, reviews, payments: [], disputes: [],
-    mockBookings: [], diagnoses: [], matchRequests: [], parentPremium: {}, passes: {}, tierOverride: {},
+    mockBookings: [], diagnoses: [], matchRequests, matchRecommendations, parentPremium: {}, passes: {}, tierOverride: {},
     verifiedOverride: {}, badgeOverride: {}, seq: 100,
   };
 }
@@ -645,4 +680,68 @@ export async function getMatchRequestById(id: string): Promise<MatchRequest | nu
     return (data as MatchRequest) ?? null;
   }
   return db().matchRequests.find((r) => r.id === id) ?? null;
+}
+
+// ── 운영자: 매칭 신청 관리 ──────────────────────────────────
+export const MAX_RECOMMENDATIONS_PER_REQUEST = 3;
+
+export async function listMatchRequests(): Promise<MatchRequest[]> {
+  const sb = await admin();
+  if (sb) {
+    const { data } = await sb.from("match_requests").select("*").order("created_at", { ascending: false });
+    return (data as MatchRequest[]) ?? [];
+  }
+  return [...db().matchRequests].sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export async function updateMatchRequestStatus(id: string, status: MatchRequestStatus): Promise<void> {
+  const now = nowIso();
+  const sb = await admin();
+  if (sb) {
+    await sb.from("match_requests").update({ status, updated_at: now }).eq("id", id);
+    return;
+  }
+  const req = db().matchRequests.find((r) => r.id === id);
+  if (req) {
+    req.status = status;
+    req.updated_at = now;
+  }
+}
+
+export async function listRecommendations(matchRequestId: string): Promise<MatchRecommendation[]> {
+  const sb = await admin();
+  if (sb) {
+    const { data } = await sb
+      .from("match_recommendations").select("*").eq("match_request_id", matchRequestId).order("created_at");
+    return (data as MatchRecommendation[]) ?? [];
+  }
+  return db()
+    .matchRecommendations.filter((r) => r.match_request_id === matchRequestId)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+export async function addRecommendation(input: {
+  match_request_id: string;
+  tutor_id: string;
+  tutor_name: string;
+  admin_reason: string;
+  available_schedule?: string;
+}): Promise<MatchRecommendation | null> {
+  const existing = await listRecommendations(input.match_request_id);
+  if (existing.length >= MAX_RECOMMENDATIONS_PER_REQUEST) return null;
+
+  const now = nowIso();
+  const sb = await admin();
+  if (sb) {
+    const { data } = await sb
+      .from("match_recommendations")
+      .insert({ ...input, status: "suggested" })
+      .select()
+      .single();
+    return data as MatchRecommendation;
+  }
+  const d = db();
+  const rec: MatchRecommendation = { ...input, id: `mrec_${++d.seq}`, status: "suggested", created_at: now };
+  d.matchRecommendations.push(rec);
+  return rec;
 }

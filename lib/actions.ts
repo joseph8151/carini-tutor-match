@@ -10,6 +10,7 @@ import { getPlan, type PlanId } from "./plans";
 import { isKakaoPayConfigured, kakaoReady } from "./kakaopay";
 import {
   addMessage,
+  addRecommendation,
   bookMock,
   createInquiry,
   createMatchRequest,
@@ -25,13 +26,14 @@ import {
   reviewVerification,
   setTier,
   submitVerification,
+  updateMatchRequestStatus,
   usePass,
 } from "./store";
 import { getAcademyBySlug, getTutorById } from "./data";
 import { QUESTIONS, scoreDiagnosis } from "./diagnosis";
 import { saveDiagnosis } from "./store";
 import { matchRequestSchema, type MatchRequestInput } from "./match";
-import type { Role } from "./types";
+import type { MatchRequestStatus, Role } from "./types";
 
 const COOKIE_OPTS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 7 };
 
@@ -392,4 +394,34 @@ export async function submitMatchRequest(
   const req = await createMatchRequest({ ...parsed.data, user_id: user?.id });
   revalidatePath("/admin/matches");
   return { ok: true, id: req.id };
+}
+
+// ── 운영자: 매칭 신청 상태/추천 관리 ────────────────────────
+export async function changeMatchStatus(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "admin") redirect("/");
+  const id = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "") as MatchRequestStatus;
+  await updateMatchRequestStatus(id, status);
+  revalidatePath("/admin/matches");
+}
+
+export async function addTutorRecommendation(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "admin") redirect("/");
+  const matchRequestId = String(formData.get("matchRequestId") ?? "");
+  const tutorId = String(formData.get("tutorId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  const schedule = String(formData.get("schedule") ?? "").trim();
+  if (!tutorId || !reason) redirect("/admin/matches?err=missing_fields");
+  const tutor = await getTutorById(tutorId);
+  if (!tutor) redirect("/admin/matches?err=tutor_not_found");
+  await addRecommendation({
+    match_request_id: matchRequestId,
+    tutor_id: tutorId,
+    tutor_name: tutor.name,
+    admin_reason: reason,
+    available_schedule: schedule || undefined,
+  });
+  revalidatePath("/admin/matches");
 }

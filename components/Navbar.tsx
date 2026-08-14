@@ -46,6 +46,9 @@ export async function Navbar() {
               )}
               {user.role === "admin" && (
                 <>
+                  <Link href="/admin/matches" className="hidden text-charcoal/70 hover:text-brand-600 sm:inline">
+                    매칭 관리
+                  </Link>
                   <Link href="/admin/verifications" className="hidden text-charcoal/70 hover:text-brand-600 sm:inline">
                     검수
                   </Link>
