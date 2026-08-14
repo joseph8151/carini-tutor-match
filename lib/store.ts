@@ -12,6 +12,7 @@ import type {
   PassInfo,
   Payment,
   PaymentStatus,
+  RescheduleRequest,
   Review,
   SubscriptionTier,
   Tutor,
@@ -61,6 +62,7 @@ interface DB {
   matchRequests: MatchRequest[];
   matchRecommendations: MatchRecommendation[];
   lessonPayments: LessonPayment[];
+  rescheduleRequests: RescheduleRequest[];
   parentPremium: Record<string, boolean>;
   passes: Record<string, PassInfo>;
   tierOverride: Record<string, SubscriptionTier>;
@@ -124,7 +126,7 @@ function seed(): DB {
       status: "reviewing", created_at: "2026-08-08T11:00:00.000Z", updated_at: "2026-08-09T10:00:00.000Z",
     },
     {
-      id: "mr_seed_3", parent_name: "정혜림", mobile: "010-6666-7777", child_age: "만 4세", child_grade: "어린이집 4세반",
+      id: "mr_seed_3", user_id: "demo_parent", parent_name: "정혜림", mobile: "010-6666-7777", child_age: "만 4세", child_grade: "어린이집 4세반",
       location: "온라인", lesson_type: "online", english_level: "Beginner (처음 시작)",
       goals: ["영어 노출", "Phonics"], lessons_per_week: "주 1회",
       preferred_days: ["금"], preferred_times: ["Morning"], tutor_preference: "native",
@@ -138,9 +140,17 @@ function seed(): DB {
       available_schedule: "금요일 오전 10~11시", status: "confirmed", created_at: "2026-08-07T09:30:00.000Z",
     },
   ];
+  const lessonPayments: LessonPayment[] = [
+    {
+      id: "lp_seed_1", match_request_id: "mr_seed_3", user_id: "demo_parent", tutor_id: "tu_native_3", tutor_name: "Jenny",
+      student_label: "정혜림님 자녀 · 만 4세", product_type: "sample", lesson_schedule: "금요일 오전 10~11시",
+      location: "온라인", duration_minutes: 40, amount: 30000, status: "paid", provider: "mock",
+      external_ref: "mock_lp_seed_1", created_at: "2026-08-07T10:00:00.000Z", updated_at: "2026-08-07T10:05:00.000Z",
+    },
+  ];
   return {
     inquiries, messages, verifications: [], reports, reviews, payments: [], disputes: [],
-    mockBookings: [], diagnoses: [], matchRequests, matchRecommendations, lessonPayments: [], parentPremium: {}, passes: {}, tierOverride: {},
+    mockBookings: [], diagnoses: [], matchRequests, matchRecommendations, lessonPayments, rescheduleRequests: [], parentPremium: {}, passes: {}, tierOverride: {},
     verifiedOverride: {}, badgeOverride: {}, seq: 100,
   };
 }
@@ -684,6 +694,18 @@ export async function getMatchRequestById(id: string): Promise<MatchRequest | nu
   return db().matchRequests.find((r) => r.id === id) ?? null;
 }
 
+export async function listMatchRequestsForUser(userId: string): Promise<MatchRequest[]> {
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb
+      .from("match_requests").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+    return (data as MatchRequest[]) ?? [];
+  }
+  return db()
+    .matchRequests.filter((r) => r.user_id === userId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
 // ── 운영자: 매칭 신청 관리 ──────────────────────────────────
 export const MAX_RECOMMENDATIONS_PER_REQUEST = 3;
 
@@ -824,4 +846,44 @@ export async function listLessonPaymentsForUser(userId: string): Promise<LessonP
   return db()
     .lessonPayments.filter((p) => p.user_id === userId)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+// ── 일정 변경 요청 ────────────────────────────────────────
+// 부모는 튜터 캘린더를 직접 수정하지 않는다 — 요청만 남기고 운영자가 조율한다.
+export async function createRescheduleRequest(
+  input: Omit<RescheduleRequest, "id" | "status" | "created_at">
+): Promise<RescheduleRequest> {
+  const now = nowIso();
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb
+      .from("reschedule_requests").insert({ ...input, status: "open" }).select().single();
+    return data as RescheduleRequest;
+  }
+  const d = db();
+  const req: RescheduleRequest = { ...input, id: `rr_${++d.seq}`, status: "open", created_at: now };
+  d.rescheduleRequests.push(req);
+  return req;
+}
+
+export async function listRescheduleRequestsForMatchRequest(matchRequestId: string): Promise<RescheduleRequest[]> {
+  const sb = await admin();
+  if (sb) {
+    const { data } = await sb
+      .from("reschedule_requests").select("*").eq("match_request_id", matchRequestId).order("created_at");
+    return (data as RescheduleRequest[]) ?? [];
+  }
+  return db()
+    .rescheduleRequests.filter((r) => r.match_request_id === matchRequestId)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+export async function resolveRescheduleRequest(id: string): Promise<void> {
+  const sb = await admin();
+  if (sb) {
+    await sb.from("reschedule_requests").update({ status: "resolved" }).eq("id", id);
+    return;
+  }
+  const req = db().rescheduleRequests.find((r) => r.id === id);
+  if (req) req.status = "resolved";
 }

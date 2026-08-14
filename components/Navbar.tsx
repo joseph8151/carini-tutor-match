@@ -35,9 +35,14 @@ export async function Navbar() {
           {user ? (
             <div className="flex items-center gap-3">
               {user.role === "parent" && (
-                <Link href="/parent" className="hidden text-charcoal/70 hover:text-brand-600 sm:inline">
-                  내 학습
-                </Link>
+                <>
+                  <Link href="/dashboard" className="hidden text-charcoal/70 hover:text-brand-600 sm:inline">
+                    대시보드
+                  </Link>
+                  <Link href="/parent" className="hidden text-charcoal/70 hover:text-brand-600 sm:inline">
+                    내 학습
+                  </Link>
+                </>
               )}
               {user.role === "tutor" && (
                 <Link href="/tutor" className="hidden text-charcoal/70 hover:text-brand-600 sm:inline">

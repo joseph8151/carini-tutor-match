@@ -1,8 +1,13 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
-import { listMatchRequests, listRecommendations, MAX_RECOMMENDATIONS_PER_REQUEST } from "@/lib/store";
+import {
+  listMatchRequests,
+  listRecommendations,
+  listRescheduleRequestsForMatchRequest,
+  MAX_RECOMMENDATIONS_PER_REQUEST,
+} from "@/lib/store";
 import { getTutors } from "@/lib/data";
-import { changeMatchStatus, addTutorRecommendation } from "@/lib/actions";
+import { changeMatchStatus, addTutorRecommendation, resolveReschedule } from "@/lib/actions";
 import { MATCH_STATUS_LABELS, MATCH_STATUS_ORDER, PAYMENT_READY_STATUSES } from "@/lib/match";
 
 export const metadata = { title: "매칭 신청 관리 — 어드민" };
@@ -15,6 +20,11 @@ export default async function AdminMatchesPage() {
   const [requests, tutors] = await Promise.all([listMatchRequests(), getTutors()]);
   const recsByRequest = Object.fromEntries(
     await Promise.all(requests.map(async (r) => [r.id, await listRecommendations(r.id)] as const))
+  );
+  const reschedulesByRequest = Object.fromEntries(
+    await Promise.all(
+      requests.map(async (r) => [r.id, await listRescheduleRequestsForMatchRequest(r.id)] as const)
+    )
   );
 
   return (
@@ -37,6 +47,7 @@ export default async function AdminMatchesPage() {
             const recs = recsByRequest[r.id] ?? [];
             const canAddMore = recs.length < MAX_RECOMMENDATIONS_PER_REQUEST;
             const paymentReady = PAYMENT_READY_STATUSES.has(r.status);
+            const openReschedules = (reschedulesByRequest[r.id] ?? []).filter((rr) => rr.status === "open");
 
             return (
               <li key={r.id} className="rounded-2xl border border-softgray bg-warmwhite p-5">
@@ -64,6 +75,23 @@ export default async function AdminMatchesPage() {
                   <div><dt className="inline font-semibold text-charcoal/45">영어 수준: </dt><dd className="inline">{r.english_level}</dd></div>
                 </dl>
                 {r.notes && <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-[13px] text-charcoal/60">메모: {r.notes}</p>}
+
+                {openReschedules.length > 0 && (
+                  <div className="mt-3 space-y-2 rounded-xl bg-amber-50 p-3">
+                    <p className="text-xs font-bold text-amber-700">일정 변경 요청 ({openReschedules.length}건)</p>
+                    {openReschedules.map((rr) => (
+                      <div key={rr.id} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2.5 text-[13px]">
+                        <span className="text-charcoal/70">{rr.note}</span>
+                        <form action={resolveReschedule}>
+                          <input type="hidden" name="id" value={rr.id} />
+                          <button className="shrink-0 rounded-lg border border-softgray px-2.5 py-1 text-xs font-semibold text-charcoal/50 hover:bg-softgray">
+                            처리 완료
+                          </button>
+                        </form>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* 상태 변경 */}
                 <form action={changeMatchStatus} className="mt-4 flex flex-wrap items-center gap-2">

@@ -229,6 +229,17 @@ export interface LessonPayment {
   updated_at: string;
 }
 
+// 일정 변경 요청 — 부모가 직접 튜터 캘린더를 수정하지 않고, 운영자에게 요청만 전달한다.
+export interface RescheduleRequest {
+  id: string;
+  lesson_payment_id: string;
+  match_request_id: string;
+  user_id?: string;
+  note: string;
+  status: "open" | "resolved";
+  created_at: string;
+}
+
 export interface DiagnosisRecord {
   id: string;
   user_id: string;

@@ -65,6 +65,17 @@ export default async function ParentDashboard() {
         </Link>
       </div>
 
+      {/* 매칭 대시보드 진입 */}
+      <section className="flex items-center justify-between rounded-2xl border border-softgray bg-butter-50 p-5">
+        <div>
+          <p className="font-bold text-brand-700">우리 아이 튜터 매칭 현황</p>
+          <p className="mt-1 text-sm text-charcoal/55">매칭 신청, 선생님, 수업 일정, 결제 내역을 한 곳에서 확인하세요.</p>
+        </div>
+        <Link href="/dashboard" className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+          매칭 대시보드 →
+        </Link>
+      </section>
+
       {/* 프리미엄 / 우선 매칭권 */}
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-5">
         <div>

@@ -19,6 +19,7 @@ import {
   createReport,
   createReview,
   getInquiry,
+  createRescheduleRequest,
   getMatchRequestById,
   getPaymentForInquiry,
   grantParentPremium,
@@ -27,6 +28,7 @@ import {
   openDispute,
   releasePayment,
   resolveDispute,
+  resolveRescheduleRequest,
   reviewVerification,
   setTier,
   submitVerification,
@@ -485,6 +487,33 @@ export async function cancelMockPayment(formData: FormData) {
   const requestId = String(formData.get("requestId") ?? "");
   await getPaymentProvider().cancelPayment(paymentId);
   redirect(`/match/complete?id=${requestId}`);
+}
+
+// ── 일정 변경 요청 (부모 대시보드 → 운영자) ──────────────────
+export async function requestReschedule(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) redirect("/login?next=/dashboard");
+  const lessonPaymentId = String(formData.get("lessonPaymentId") ?? "");
+  const matchRequestId = String(formData.get("matchRequestId") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+  if (!note) redirect("/dashboard?err=empty_note");
+  await createRescheduleRequest({
+    lesson_payment_id: lessonPaymentId,
+    match_request_id: matchRequestId,
+    user_id: user.id,
+    note,
+  });
+  revalidatePath("/dashboard");
+  revalidatePath("/admin/matches");
+  redirect("/dashboard?ok=reschedule");
+}
+
+export async function resolveReschedule(formData: FormData) {
+  const user = await getSessionUser();
+  if (user?.role !== "admin") redirect("/");
+  const id = String(formData.get("id") ?? "");
+  await resolveRescheduleRequest(id);
+  revalidatePath("/admin/matches");
 }
 
 export async function addTutorRecommendation(formData: FormData) {
