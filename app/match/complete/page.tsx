@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { getMatchRequestById } from "@/lib/store";
+import { MATCH_STATUS_ORDER, PAYMENT_READY_STATUSES } from "@/lib/match";
 
 export const metadata = { title: "매칭 신청 완료 — 카리니 튜터링" };
 
-const JOURNEY = [
-  { n: 1, label: "신청 완료", done: true },
-  { n: 2, label: "카리니 검토", done: false },
-  { n: 3, label: "튜터 일정 확인", done: false },
-  { n: 4, label: "매칭 제안", done: false },
-  { n: 5, label: "샘플수업 결제", done: false },
-];
+const JOURNEY_STEPS = [
+  { n: 1, label: "신청 완료", target: "new" },
+  { n: 2, label: "카리니 검토", target: "reviewing" },
+  { n: 3, label: "튜터 일정 확인", target: "tutor_confirmed" },
+  { n: 4, label: "매칭 제안", target: "proposal_sent" },
+  { n: 5, label: "샘플수업 결제", target: "payment_pending" },
+] as const;
 
 export default async function MatchCompletePage({
   searchParams,
@@ -19,6 +20,9 @@ export default async function MatchCompletePage({
 }) {
   const { id } = await searchParams;
   const request = id ? await getMatchRequestById(id) : null;
+  const currentIdx = request ? MATCH_STATUS_ORDER.indexOf(request.status) : -1;
+  const JOURNEY = JOURNEY_STEPS.map((s) => ({ ...s, done: currentIdx >= MATCH_STATUS_ORDER.indexOf(s.target) }));
+  const readyForPayment = request ? PAYMENT_READY_STATUSES.has(request.status) : false;
 
   return (
     <div className="mx-auto max-w-2xl space-y-10 py-6 text-center">
@@ -58,6 +62,18 @@ export default async function MatchCompletePage({
           ))}
         </div>
       </div>
+
+      {readyForPayment && request && (
+        <div className="rounded-2xl bg-butter-50 px-6 py-5">
+          <p className="text-sm font-semibold text-brand-700">튜터 일정이 확정되었습니다!</p>
+          <Link
+            href={`/checkout/sample?requestId=${request.id}`}
+            className="mt-3 inline-block rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            샘플수업 예약 및 결제
+          </Link>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link

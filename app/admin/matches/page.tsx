@@ -3,11 +3,9 @@ import { getSessionUser } from "@/lib/session";
 import { listMatchRequests, listRecommendations, MAX_RECOMMENDATIONS_PER_REQUEST } from "@/lib/store";
 import { getTutors } from "@/lib/data";
 import { changeMatchStatus, addTutorRecommendation } from "@/lib/actions";
-import { MATCH_STATUS_LABELS, MATCH_STATUS_ORDER } from "@/lib/match";
+import { MATCH_STATUS_LABELS, MATCH_STATUS_ORDER, PAYMENT_READY_STATUSES } from "@/lib/match";
 
 export const metadata = { title: "매칭 신청 관리 — 어드민" };
-
-const PAYMENT_READY_STATUSES = new Set(["tutor_confirmed", "proposal_sent", "payment_pending", "paid", "lesson_scheduled", "completed"]);
 
 export default async function AdminMatchesPage() {
   const user = await getSessionUser();

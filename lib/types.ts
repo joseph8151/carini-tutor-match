@@ -204,6 +204,31 @@ export interface MatchRecommendation {
   created_at: string;
 }
 
+// ── 수업 결제 (샘플수업 / 정규 패키지) ──────────────────────
+// 기존 Payment(문의 에스크로 결제)와 별개 도메인 — 매칭 확정 후 수업 결제를 다룬다.
+export type LessonPaymentStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded";
+export type LessonProductType = "sample" | "package";
+
+export interface LessonPayment {
+  id: string;
+  match_request_id: string;
+  user_id?: string;
+  tutor_id: string;
+  tutor_name: string;
+  student_label: string; // 표시용 (예: "이수정님 자녀 · 만 5세")
+  product_type: LessonProductType;
+  package_id?: string; // product_type === "package" 일 때
+  lesson_schedule?: string; // 표시용 자유 텍스트 (예: "화요일 오후 4시")
+  location: string;
+  duration_minutes: number;
+  amount: number;
+  status: LessonPaymentStatus;
+  provider: string; // 결제 Provider 식별자 (예: "mock", "toss")
+  external_ref?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DiagnosisRecord {
   id: string;
   user_id: string;

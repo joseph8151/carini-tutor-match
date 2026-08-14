@@ -13,13 +13,17 @@ import {
   addRecommendation,
   bookMock,
   createInquiry,
+  createLessonPayment,
   createMatchRequest,
   createPayment,
   createReport,
   createReview,
   getInquiry,
+  getMatchRequestById,
   getPaymentForInquiry,
   grantParentPremium,
+  listLessonPaymentsForRequest,
+  listRecommendations,
   openDispute,
   releasePayment,
   resolveDispute,
@@ -32,7 +36,9 @@ import {
 import { getAcademyBySlug, getTutorById } from "./data";
 import { QUESTIONS, scoreDiagnosis } from "./diagnosis";
 import { saveDiagnosis } from "./store";
-import { matchRequestSchema, type MatchRequestInput } from "./match";
+import { matchRequestSchema, PAYMENT_READY_STATUSES, type MatchRequestInput } from "./match";
+import { getLessonPackage, SAMPLE_LESSON_DURATION_MIN, SAMPLE_LESSON_PRICE } from "./lessonPackages";
+import { getPaymentProvider } from "./payment/mock";
 import type { MatchRequestStatus, Role } from "./types";
 
 const COOKIE_OPTS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 7 };
@@ -404,6 +410,81 @@ export async function changeMatchStatus(formData: FormData) {
   const status = String(formData.get("status") ?? "") as MatchRequestStatus;
   await updateMatchRequestStatus(id, status);
   revalidatePath("/admin/matches");
+}
+
+// ── 샘플수업 / 정규 패키지 결제 ──────────────────────────────
+export async function startSampleCheckout(formData: FormData) {
+  const requestId = String(formData.get("requestId") ?? "");
+  const request = await getMatchRequestById(requestId);
+  if (!request) redirect("/match");
+  if (!PAYMENT_READY_STATUSES.has(request.status)) redirect(`/match/complete?id=${requestId}`);
+
+  const recs = await listRecommendations(requestId);
+  const confirmed = recs.find((r) => r.status === "confirmed");
+  const tutorId = confirmed?.tutor_id ?? request.requested_tutor_id;
+  const tutorName = confirmed?.tutor_name ?? request.requested_tutor_name;
+  if (!tutorId || !tutorName) redirect(`/match/complete?id=${requestId}`);
+
+  const user = await getSessionUser();
+  const payment = await createLessonPayment({
+    match_request_id: requestId,
+    user_id: user?.id,
+    tutor_id: tutorId,
+    tutor_name: tutorName,
+    student_label: `${request.parent_name}님 자녀 · ${request.child_age}`,
+    product_type: "sample",
+    lesson_schedule: confirmed?.available_schedule,
+    location: request.location,
+    duration_minutes: SAMPLE_LESSON_DURATION_MIN,
+    amount: SAMPLE_LESSON_PRICE,
+  });
+  await getPaymentProvider().createPayment(payment);
+  redirect(`/checkout/pay?paymentId=${payment.id}`);
+}
+
+export async function startPackageCheckout(formData: FormData) {
+  const requestId = String(formData.get("requestId") ?? "");
+  const packageId = String(formData.get("packageId") ?? "");
+  const pkg = getLessonPackage(packageId);
+  const request = await getMatchRequestById(requestId);
+  if (!request || !pkg) redirect("/match");
+
+  const paid = await listLessonPaymentsForRequest(requestId);
+  const sampleDone = paid.some((p) => p.product_type === "sample" && p.status === "paid");
+  if (!sampleDone) redirect(`/checkout/sample?requestId=${requestId}`);
+
+  const confirmed = (await listRecommendations(requestId)).find((r) => r.status === "confirmed");
+  const tutorId = confirmed?.tutor_id ?? request.requested_tutor_id ?? "";
+  const tutorName = confirmed?.tutor_name ?? request.requested_tutor_name ?? "";
+
+  const user = await getSessionUser();
+  const payment = await createLessonPayment({
+    match_request_id: requestId,
+    user_id: user?.id,
+    tutor_id: tutorId,
+    tutor_name: tutorName,
+    student_label: `${request.parent_name}님 자녀 · ${request.child_age}`,
+    product_type: "package",
+    package_id: pkg.id,
+    location: request.location,
+    duration_minutes: SAMPLE_LESSON_DURATION_MIN,
+    amount: pkg.price,
+  });
+  await getPaymentProvider().createPayment(payment);
+  redirect(`/checkout/pay?paymentId=${payment.id}`);
+}
+
+export async function confirmMockPayment(formData: FormData) {
+  const paymentId = String(formData.get("paymentId") ?? "");
+  await getPaymentProvider().confirmPayment(paymentId);
+  redirect(`/checkout/pay/success?paymentId=${paymentId}`);
+}
+
+export async function cancelMockPayment(formData: FormData) {
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const requestId = String(formData.get("requestId") ?? "");
+  await getPaymentProvider().cancelPayment(paymentId);
+  redirect(`/match/complete?id=${requestId}`);
 }
 
 export async function addTutorRecommendation(formData: FormData) {

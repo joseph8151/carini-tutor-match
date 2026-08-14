@@ -96,3 +96,13 @@ export const MATCH_STATUS_LABELS = {
 } as const;
 
 export const MATCH_STATUS_ORDER = Object.keys(MATCH_STATUS_LABELS) as (keyof typeof MATCH_STATUS_LABELS)[];
+
+// 튜터 일정이 확정된 이후 상태 — 이 시점부터 샘플수업 결제 버튼이 활성화된다.
+export const PAYMENT_READY_STATUSES = new Set([
+  "tutor_confirmed",
+  "proposal_sent",
+  "payment_pending",
+  "paid",
+  "lesson_scheduled",
+  "completed",
+]);

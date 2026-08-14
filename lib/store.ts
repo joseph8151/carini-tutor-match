@@ -2,6 +2,7 @@ import type {
   DiagnosisRecord,
   Dispute,
   Inquiry,
+  LessonPayment,
   LessonReport,
   MatchRecommendation,
   MatchRequest,
@@ -59,6 +60,7 @@ interface DB {
   diagnoses: DiagnosisRecord[];
   matchRequests: MatchRequest[];
   matchRecommendations: MatchRecommendation[];
+  lessonPayments: LessonPayment[];
   parentPremium: Record<string, boolean>;
   passes: Record<string, PassInfo>;
   tierOverride: Record<string, SubscriptionTier>;
@@ -138,7 +140,7 @@ function seed(): DB {
   ];
   return {
     inquiries, messages, verifications: [], reports, reviews, payments: [], disputes: [],
-    mockBookings: [], diagnoses: [], matchRequests, matchRecommendations, parentPremium: {}, passes: {}, tierOverride: {},
+    mockBookings: [], diagnoses: [], matchRequests, matchRecommendations, lessonPayments: [], parentPremium: {}, passes: {}, tierOverride: {},
     verifiedOverride: {}, badgeOverride: {}, seq: 100,
   };
 }
@@ -744,4 +746,82 @@ export async function addRecommendation(input: {
   const rec: MatchRecommendation = { ...input, id: `mrec_${++d.seq}`, status: "suggested", created_at: now };
   d.matchRecommendations.push(rec);
   return rec;
+}
+
+// ── 수업 결제 (샘플수업 / 정규 패키지) ──────────────────────
+// PaymentProvider(lib/payment/*)가 이 CRUD 위에서 동작한다. 여기서는 상태를 저장만 하고,
+// "결제 완료" 전이는 오직 updateLessonPayment(id, { status: "paid" }) 명시 호출로만 일어난다.
+export async function createLessonPayment(
+  input: Omit<LessonPayment, "id" | "status" | "provider" | "created_at" | "updated_at">
+): Promise<LessonPayment> {
+  const now = nowIso();
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb
+      .from("lesson_payments")
+      .insert({ ...input, status: "pending", provider: "mock" })
+      .select()
+      .single();
+    return data as LessonPayment;
+  }
+  const d = db();
+  const payment: LessonPayment = {
+    ...input,
+    id: `lp_${++d.seq}`,
+    status: "pending",
+    provider: "mock",
+    created_at: now,
+    updated_at: now,
+  };
+  d.lessonPayments.push(payment);
+  return payment;
+}
+
+export async function getLessonPaymentById(id: string): Promise<LessonPayment | null> {
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb.from("lesson_payments").select("*").eq("id", id).maybeSingle();
+    return (data as LessonPayment) ?? null;
+  }
+  return db().lessonPayments.find((p) => p.id === id) ?? null;
+}
+
+export async function updateLessonPayment(
+  id: string,
+  patch: Partial<Pick<LessonPayment, "status" | "external_ref">>
+): Promise<LessonPayment | null> {
+  const now = nowIso();
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb.from("lesson_payments").update({ ...patch, updated_at: now }).eq("id", id).select().maybeSingle();
+    return (data as LessonPayment) ?? null;
+  }
+  const payment = db().lessonPayments.find((p) => p.id === id);
+  if (!payment) return null;
+  Object.assign(payment, patch, { updated_at: now });
+  return payment;
+}
+
+export async function listLessonPaymentsForRequest(matchRequestId: string): Promise<LessonPayment[]> {
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb
+      .from("lesson_payments").select("*").eq("match_request_id", matchRequestId).order("created_at");
+    return (data as LessonPayment[]) ?? [];
+  }
+  return db()
+    .lessonPayments.filter((p) => p.match_request_id === matchRequestId)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+export async function listLessonPaymentsForUser(userId: string): Promise<LessonPayment[]> {
+  const sb = await authed();
+  if (sb) {
+    const { data } = await sb
+      .from("lesson_payments").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+    return (data as LessonPayment[]) ?? [];
+  }
+  return db()
+    .lessonPayments.filter((p) => p.user_id === userId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
