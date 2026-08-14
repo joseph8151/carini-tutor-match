@@ -175,4 +175,14 @@ export interface Tutor {
   is_verified: boolean;
   badges: TutorBadge[];
   pass_count: number; // 인증된 합격 실적 수
+  // 유아·초등 원어민 튜터링 브랜드 표시용 (선택) — 없으면 UI에서 해당 항목만 생략
+  is_native?: boolean;
+  tutor_type?: "native" | "bilingual" | "korean";
+  country?: string;
+  university?: string;
+  major?: string;
+  years_experience?: number;
+  age_focus?: string; // 예: "만 3–7세"
+  lesson_modes?: ("visit" | "online")[];
+  availability?: "available" | "limited" | "waitlist";
 }

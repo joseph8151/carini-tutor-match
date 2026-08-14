@@ -1,12 +1,16 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg: #f7f8fa;
+  /* 영문은 Plus Jakarta Sans, 한글은 Pretendard로 자동 폴백 */
+  --font-heading: "Plus Jakarta Sans", "Pretendard Variable", "Pretendard", -apple-system, sans-serif;
 }
 
 body {
-  background: var(--bg);
-  color: #111827;
+  background: #fffdf7;
+  color: #30343b;
 }
